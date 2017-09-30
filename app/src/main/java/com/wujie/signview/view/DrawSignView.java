@@ -5,6 +5,8 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.os.Handler;
 import android.os.Message;
 import android.util.AttributeSet;
@@ -55,14 +57,46 @@ public class DrawSignView {
         private Handler mHandler = null;
         private TimerTask task = null;
 
-        public Background(Context context, Paint mPaintt, float lineHightt) {
+        private boolean isS = false;
+
+        private boolean a = true;
+
+        public Background(Context context, final Paint mPaintt, float lineHightt) {
             super(context);
-            this.mPaint = mPaint;
+            this.mPaint = mPaintt;
             this.lineHight = lineHightt;
             this.mCursorPar = new CursorPar();
+            mCursorPar.setCursocHeight(lineHightt -10);
             mHandler = new Handler() {
                 @Override
                 public void handleMessage(Message msg) {
+                    switch (msg.what) {
+                        case 1:
+                            if(mCanvas != null && a) {
+                                mPaint.setStrokeWidth(2);
+                                if (isS) {
+                                    mPaint.setXfermode(null);
+                                    isS = false;
+                                } else {
+                                    mPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode
+                                            .CLEAR));
+                                    isS = true;
+                                    mPaint.setStrokeWidth(4);
+                                }
+
+                                mCanvas.drawLine(mCursorPar.getCursorX(), mCursorPar.getCursorY(),
+                                        mCursorPar.getCursorX(), mCursorPar.getCursorY() +
+                                                mCursorPar.getCursocHeight(), mPaint);
+                                mPaint.setXfermode(null);
+                                invalidate((int) (mCursorPar.getCursorX() - mPaintWidth),
+                                        (int) (mCursorPar.getCursorY() - mPaintWidth),
+                                        (int) (mCursorPar.getCursorX() + mPaintWidth),
+                                        (int) (mCursorPar.getCursorY() + mPaintWidth + mCursorPar.getCursocHeight()));
+                            }
+                            break;
+
+                    }
+
                     super.handleMessage(msg);
                 }
             };
@@ -97,6 +131,62 @@ public class DrawSignView {
                 mCanvas.drawLine(0, lineHight * i, getWidth(), lineHight *i, mPaint);
             }
 
+        }
+
+        public void next(float x, float y) {
+            if (mCursorPar == null) {
+                return;
+            }
+            if (timer == null || task == null) {
+                wakeCustom();
+            }
+            a = false;
+            clearCurrentGB();
+            mCursorPar.setCursorX(x);
+            mCursorPar.setCursorY(y);
+            a = true;
+        }
+
+        private void clearCurrentGB() {
+            isS = true;
+            mPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+            mPaint.setStyle(Paint.Style.FILL);
+            mCanvas.drawRect(mCursorPar.getCursorX() - mPaintWidth, mCursorPar.getCursorY()
+                    -mPaintWidth, mCursorPar.getCursorX() + mPaintWidth, mCursorPar.getCursorY() + mPaintWidth
+                    + mCursorPar.getCursocHeight(), mPaint);
+            mPaint.setXfermode(null);
+            mPaint.setStyle(Paint.Style.STROKE);
+            mPaint.setStrokeWidth(1);
+            invalidate((int) (mCursorPar.getCursorX() - mPaintWidth),
+                    (int) (mCursorPar.getCursorY() - mPaintWidth),
+                    (int) (mCursorPar.getCursorX() + mPaintWidth),
+                    (int) (mCursorPar.getCursorY() + mPaintWidth + mCursorPar.getCursocHeight()));
+        }
+
+        public void wakeCustom() {
+            task = new TimerTask() {
+                @Override
+                public void run() {
+                    Message message = new Message();
+                    message.what = 1;
+                    mHandler.sendMessage(message);
+                }
+            };
+            timer = new Timer();
+            timer.scheduleAtFixedRate(task, 1000L, 500L);
+        }
+
+        public void finish() {
+            if(task != null) {
+                task.cancel();
+            }
+
+            if(timer != null) {
+                timer.cancel();
+            }
+            task = null;
+            timer = null;
+            clearCurrentGB();
         }
     }
 

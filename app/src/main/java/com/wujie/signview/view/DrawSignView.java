@@ -15,11 +15,17 @@ import android.os.Handler;
 import android.os.Message;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.Toast;
 
 import com.wujie.signview.R;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+
+import static android.R.attr.x;
+import static android.R.attr.y;
 
 /**
  * Created by Troy on 2017-9-29.
@@ -118,9 +124,36 @@ public class DrawSignView {
         final Handler handler = new Handler() {
             @Override
             public void handleMessage(Message msg) {
+                switch (msg.what) {
+                    case 1:
+                        myPath.setMaxX(maxX / narrowNum);
+                        myPath.setMaxY(maxY / narrowNum);
+                        if(pathListener != null) {
+                            pathListener.onPath(myPath);
+                        }
+                        // 设置 当前view不属于书写状态
+                        isHandlerWriting = false;
+                        mPath.reset();
+                        mmPath = new Path();
+                        setMaxOrMin();
+                        invalidate();
+                        isFirst = true;
+                        break;
+                }
                 super.handleMessage(msg);
             }
         };
+
+        public void clearCanvasView() {
+            if (timer != null) {
+                timer.cancel();
+            }
+
+            isHandlerWriting = false;
+            mPath.reset();
+            mmPath = new Path();
+            setMaxOrMin();
+        }
 
         public CanvasView(Context c , Paint paint, int width) {
             super(c);
@@ -361,6 +394,387 @@ public class DrawSignView {
         }
 
     }
+
+
+    public class WriteLineView extends View  {
+        private Bitmap mBitmap;
+        private Canvas mCanvas;
+        private Paint mPaint;
+        private float lineHeight;
+        private float lineWidth;
+        private Bitmap tempBitmap;
+        private Canvas tempCanvas;
+        private float paintWidth;
+        private Context context;
+
+        /**
+         * 每个字之间的距离
+         */
+        private int fontSpace = 5;
+        /**
+         * 每一行距离顶点的基础距离
+         */
+        private int spaceY = 7;
+
+        /**
+         * 记录书写的字的信息 行列排列 数据字典中 外层list为行 里面list为列
+         */
+        private List<ArrayList<CanvasPath>> listPathLine = new ArrayList<>();
+
+        /**
+         * 当前的行数 从1开始计数
+         */
+        private int currLineNum = 1;
+
+        /**
+         * 当前的列数 从0开始
+         */
+        private int currIndexNum = 0;
+
+        /**
+         * 当前View最多可以显示的行数
+         */
+        private int maxLineNum = 0;
+
+        public WriteLineView(Context context, Paint mPaint, float lineHeight) {
+            super(context);
+            this.context = context;
+            this.mPaint = mPaint;
+            this.lineHeight = lineHeight;
+            this.paintWidth = mPaint.getStrokeWidth();
+        }
+
+        public float[] getMaxXY() {
+            float maxY = 0;
+            float maxX = 0;
+
+            if(listPathLine != null) {
+                for (ArrayList<CanvasPath> t:
+                     listPathLine) {
+                    if(t != null) {
+                        for (CanvasPath path : t) {
+                            if (path.getCanvasType() == CanvasPath.C_icanVasType_handleWriting) {
+                                maxY = Math.max(maxY, path.getEndY());
+                                maxX = Math.max(maxX, path.getEndX());
+                            }
+                        }
+                    }
+                }
+            }
+            float[] ss = new float[2];
+            ss[0] = maxX;
+            ss[1] = maxY;
+            return  ss;
+        }
+
+        public  void write(CanvasPath mPath, WriteListener writeListener) {
+            if (mBitmap == null || mCanvas == null) {
+                this.mBitmap = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config
+                        .ARGB_4444);
+                mCanvas = new Canvas(mBitmap);
+            }
+
+            if ((fontSpace + mPath.getMaxX()) > getWidth()) {
+                Toast.makeText(context, "单个字超出了画布的长度", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (mCanvas != null) {
+                int tempCurrLineNum = currLineNum;
+                int tempCurrIndexNum = currIndexNum;
+                // 这里判断输入是否超出了边界===Y轴方向
+                CanvasPath aa = getCanvasPath(currLineNum, currIndexNum -1);
+                if (aa != null) {
+                    if ((aa.getEndX() + mPath.getMaxX()) > getWidth()) {
+                        if ((aa.getEndY() -spaceY + lineHeight) > getHeight()) {
+                            Toast.makeText(context, "达到输入上限不能再输入了",Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                    }
+                }
+
+            }
+        }
+
+        /**
+         * 添加一个字到记录的路径中去
+         * @param tlineNum
+         * @param tlineIndexNum
+         * @param path
+         */
+        private void addCanvasPath(int tlineNum, int tlineIndexNum, CanvasPath path) {
+            /**
+             * 中间跳过的行数加上
+             */
+            if (listPathLine.size() < tlineNum) {
+                for (int i = listPathLine.size(); tlineNum > i; i++) {
+                    ArrayList<CanvasPath> listLineItem = new ArrayList<>();
+
+                    CanvasPath canvasT = new CanvasPath(CanvasPath.C_iCanVasType_enter);
+                    canvasT.setStartX(fontSpace);
+                    canvasT.setStartY(i * lineHeight + spaceY);
+                    canvasT.setEndX(fontSpace);
+                    canvasT.setEndY(canvasT.getStartY()+ lineHeight);
+                    canvasT.setMaxX(0);
+                    canvasT.setMaxY(lineHeight);
+                    listLineItem.add(0, canvasT);
+
+                    listPathLine.add(i, listLineItem);
+                }
+            }
+
+            ArrayList<CanvasPath> listLineItem = listPathLine.get(tlineNum -1);
+
+            if (listLineItem.size() >= tlineIndexNum) {
+                listLineItem.add(tlineIndexNum, path);
+
+                if (tlineIndexNum == 0) {
+                    path.setStartX(fontSpace);
+                    path.setStartY((tlineNum -1) * lineHeight + spaceY);
+                }
+                if (tlineIndexNum > 0) {
+                    CanvasPath tPath = listLineItem.get(tlineIndexNum -1);
+                    path.setStartX(tPath.getEndX());
+                    path.setStartY(tPath.getStartY());
+                }
+            } else {
+                float x = 0;
+                if (listLineItem.size() == 0) {
+                    x = fontSpace;
+                } else {
+                    x = listLineItem.get(listLineItem.size() -1).getEndX();
+                }
+
+                float y = (tlineNum -1) * lineHeight + spaceY;
+                for (int i = listLineItem.size(); i < tlineIndexNum; i++) {
+                    CanvasPath canvasT = new CanvasPath(CanvasPath.C_iCanVasType_space);
+                    canvasT.setStartX(x);
+                    canvasT.setStartY(y);
+                    canvasT.setEndX(x + lineWidth);
+                    canvasT.setEndY(y + lineHeight);
+                    canvasT.setMaxX(lineWidth);
+                    canvasT.setMaxY(lineHeight);
+                    x = x + lineWidth;
+                    listLineItem.add(i, canvasT);
+                }
+                path.setStartX(x);
+                path.setStartY(y);
+                listLineItem.add(tlineIndexNum, path);
+            }
+            path.setStartX(x);
+            path.setStartY(y);
+            listLineItem.add(tlineIndexNum, path);
+
+        }
+
+        /**
+         * 重画 第lineNum行的 第lineIndexNum个以后的元素
+         * @param lineNum
+         * @param lineIndexNum
+         */
+        private void redrawLine(int lineNum, int lineIndexNum) {
+            if (listPathLine != null && listPathLine.size() >= lineNum) {
+                ArrayList<CanvasPath> listLineItem = listPathLine.get(lineNum - 1);
+                if (listLineItem != null && listLineItem.size() > lineIndexNum) {
+                    CanvasPath sPath = listLineItem.get(lineIndexNum);
+                    float tempCurrX = sPath.getStartX();
+                    float tempCurrY = sPath.getStartY();
+
+                    int tempX = (int) Math.ceil(sPath.maxX + mPaint.getStrokeWidth());
+                    int tempY = (int) Math.ceil(lineHeight);
+
+                    tempBitmap = Bitmap.createBitmap(tempX, tempY, Bitmap.Config.ARGB_4444);
+                    tempCanvas = new Canvas(tempBitmap);
+                    tempCanvas.drawPath(sPath.getPath(), mPaint);
+                    sPath.setBitmap(tempBitmap);
+
+                    for (int i = lineIndexNum; listPathLine.size() > i; i++) {
+                        CanvasPath tPath = listLineItem.get(i);
+
+                        if (tPath.getCanvasType() == CanvasPath.C_iCanVasType_space) {
+                            listLineItem.remove(i);
+                            i--;
+                            if (tempCurrX < tPath.getEndX()) {
+                                currIndexNum++;
+                                return;
+                            }
+                        }
+
+                        if (tempCurrX < tPath.getStartX()) {
+                            currIndexNum++;
+                            return;
+                        }
+                        if (tempCurrX + tPath.getMaxX() > getWidth()) {
+                            refreshBackContent(tempCurrX, tempCurrY);
+                            // 这里将余下的加入下一行
+                            List<CanvasPath> listLineSubItem = new ArrayList<>();
+                            for (int j = i; j < listLineItem.size(); j++) {
+                                listLineSubItem.add(listLineItem.remove(j));
+                            }
+                            addToNextLine(lineNum + 1, listLineSubItem);
+                            redrawLine(lineNum+1);
+                            if (lineIndexNum == i) {
+                                currIndexNum++;
+                                currIndexNum = 1;
+                            } else {
+                                currIndexNum++;
+                            }
+                            return;
+                        }
+
+                        if (tPath.getCanvasType() == CanvasPath.C_icanVasType_handleWriting) {
+                            tPath.setStartX(tempCurrX);
+                            tPath.setStartY(tempCurrY);
+                            tPath.setEndX(tempCurrX + tPath.getMaxX() + fontSpace);
+                            tPath.setEndY(tempCurrY + lineHeight);
+                            tempCurrX = tempCurrY + tPath.getMaxX() + fontSpace;
+                            refreshBackContent(tPath);
+                            if (tPath.getStartY() - spaceY > getHeight() - lineHeight) {
+                                Toast.makeText(context, "达到输入上限。", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+                            mCanvas.drawBitmap(tPath.getBitmap(), tPath.getStartX(), tPath
+                                    .getStartY(), null);
+                        }
+                        currIndexNum++;
+
+                    }
+                }
+
+
+
+            }
+        }
+
+        /**
+         * 重画 参数行
+         */
+        private void redrawLine(int lineNum) {
+            if (listPathLine != null && listPathLine.size() >= lineNum) {
+                ArrayList<CanvasPath> listLineItem = listPathLine.get(lineNum - 1);
+                if (listLineItem == null) {
+                    listPathLine.remove(lineNum -1);
+                    return;
+                }
+                float tempCurrX = fontSpace;
+                float tempCurrY = lineHeight * (lineNum -1) + spaceY;
+                for (int i = 0; listLineItem.size() > i; i++) {
+                    CanvasPath tPath = listLineItem.get(i);
+                    if (tPath.getCanvasType() == CanvasPath.C_iCanVasType_space) {
+                        listLineItem.remove(i);
+                        i--;
+                        if (tempCurrX < tPath.getEndX()) {
+                            return;
+                        }
+                    }
+
+                    if (tempCurrX < tPath.startX) {
+                        return;
+                    }
+
+                    if (tempCurrX + tPath.getMaxX() > getWidth()) {
+                        refreshBackContent(tempCurrX, tempCurrY);
+                        List<CanvasPath> listLineSubItem = new ArrayList<>();
+                        for (int j = i; j < listLineItem.size(); j++) {
+                            listLineSubItem.add(listLineItem.remove(j));
+                        }
+                        addToNextLine(lineNum + 1, listLineSubItem);
+                        redrawLine(lineNum + 1);
+                        return;
+                    }
+
+                    if (tPath.getCanvasType() == CanvasPath.C_icanVasType_handleWriting) {
+                        tPath.setStartX(tempCurrX);
+                        tPath.setStartY(tempCurrY);
+                        tPath.setEndX(tempCurrX + tPath.getMaxX() + fontSpace);
+                        tPath.setEndY(tempCurrY + lineHeight);
+                        tempCurrX = tempCurrX + tPath.getMaxX() + fontSpace;
+                        refreshBackContent(tPath);
+                        if (tPath.getStartY() - spaceY > getHeight() - lineHeight) {
+                            Toast.makeText(context, "达到输入框上限。", Toast.LENGTH_SHORT).show();
+                        }
+                        mCanvas.drawBitmap(tPath.getBitmap(), tPath.getStartX(),
+                                tPath.getStartY(), null);
+                    }
+                }
+
+            }
+        }
+
+        /**
+         * 将listLineSubItem 加入到lineNum的行中
+         * @param lineNum
+         * @param listLineSubItem
+         */
+        private void addToNextLine(int lineNum, List<CanvasPath> listLineSubItem) {
+            if (listLineSubItem == null || listLineSubItem.size() == 0) {
+                return;
+            }
+            /**
+             * 中间跳过的行数加上
+             */
+            if (listPathLine.size() < lineNum) {
+                for (int i = listPathLine.size(); lineNum > i ; i++) {
+                    ArrayList<CanvasPath> listLineItem = new ArrayList<>();
+                    listPathLine.add(i, listLineItem);
+                }
+            }
+
+            ArrayList<CanvasPath> listLineItem = listPathLine.get(lineNum -1);
+            for (int i = 0; i < listLineSubItem.size(); i++) {
+                CanvasPath tempPath = listLineSubItem.get(i);
+                tempPath.clearSet();
+                listLineItem.add(i, tempPath);
+            }
+        }
+
+        /**
+         * 清空 参数位置的内容
+         * @param tPath
+         */
+        private void refreshBackContent(CanvasPath tPath) {
+            mPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+            mPaint.setStyle(Paint.Style.FILL);
+            mCanvas.drawRect(tPath.getStartX() - paintWidth, tPath.getStartY() - paintWidth,
+                    tPath.getEndX() + paintWidth, tPath.getEndY() + paintWidth, mPaint);
+            mPaint.setXfermode(null);
+            mPaint.setStyle(Paint.Style.STROKE);
+        }
+
+        private void refreshBackContent(float currx, float currY) {
+            mPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+            mPaint.setStyle(Paint.Style.FILL);
+            mCanvas.drawRect(currx - paintWidth, currY - paintWidth, getRight(),
+                    currY + lineHeight, mPaint);
+            mPaint.setXfermode(null);
+            mPaint.setStyle(Paint.Style.STROKE);
+        }
+
+        private CanvasPath getCanvasPath(int lineNum, int indexNum) {
+            if (lineNum < 1) {
+                lineNum = 1;
+            }
+
+            if (indexNum < 0) {
+                indexNum = 0;
+            }
+
+            if(listPathLine.size() < lineNum) {
+                return  null;
+            }
+            ArrayList<CanvasPath> tListpath = listPathLine.get(lineNum-1);
+            if (tListpath == null || tListpath.size() < (indexNum + 1)) {
+                return  null;
+            }
+            return  tListpath.get(indexNum);
+        }
+    }
+
+
+    public interface WriteListener {
+        public  void writed(CanvasPath pp);
+    }
+
 
     public interface  PathListener{
 
@@ -619,6 +1033,13 @@ public class DrawSignView {
 
         public CanvasPath(int canvasType) {
             this.canvasType = canvasType;
+        }
+
+        public void clearSet() {
+            startX = 0;
+            startY = 0;
+            endX = 0;
+            endY = 0;
         }
     }
 

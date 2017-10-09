@@ -13,6 +13,7 @@ import android.graphics.PorterDuffXfermode;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Handler;
 import android.os.Message;
+import android.view.MotionEvent;
 import android.view.View;
 
 import com.wujie.signview.R;
@@ -27,6 +28,8 @@ import java.util.TimerTask;
 public class DrawSignView {
 
 
+
+    public static final int thight = 80;
     /**
      * 用来写字的View
      */
@@ -78,18 +81,34 @@ public class DrawSignView {
             this.pathListener = pathListener;
         }
 
+        /**
+         * 得到画板的画笔
+         * @return
+         */
         public Paint getmPaint() {
             return mPaint;
         }
 
+        /**
+         * 设置画板的画笔
+         * @param mPaint
+         */
         public void setmPaint(Paint mPaint) {
             this.mPaint = mPaint;
         }
 
+        /**
+         * 得到缩小倍数
+         * @return
+         */
         public int getNarrowNum() {
             return narrowNum;
         }
 
+        /**
+         * 设置缩小倍数
+         * @param narrowNum
+         */
         public void setNarrowNum(int narrowNum) {
             this.narrowNum = narrowNum;
         }
@@ -113,6 +132,170 @@ public class DrawSignView {
             drawHandlerWritingBox();
             setBackgroundDrawable(new BitmapDrawable(bitmap));
 
+        }
+
+        @Override
+        protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+            super.onSizeChanged(w, h, oldw, oldh);
+            mPaint.setStrokeWidth(getWidth() / 53);
+            narrowNum = h / thight;
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            if(mPaint != null) {
+                canvas.drawPath(mPath, mPaint);
+            }
+        }
+
+        private int onTouchCount = 0;
+
+        @Override
+        public boolean onTouchEvent(MotionEvent event) {
+            float x = event.getX();
+            float y = event.getY();
+            onTouchCount++;
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    touch_start(x, y);
+                    break;
+                case MotionEvent.ACTION_MOVE:
+                    touch_move(x, y, event);
+                    break;
+                case MotionEvent.ACTION_UP:
+                    touch_up(x, y);
+                    break;
+            }
+
+            return true;
+        }
+
+        private void touch_start(float x, float y) {
+            if(timer != null) {
+                timer.cancel();
+            }
+            mPath.moveTo(x, y);
+            mmPath.moveTo(x / narrowNum, y / narrowNum);
+
+            myPath = new CanvasPath(mmPath);
+
+            mX = x;
+            mY = y;
+            ddx = x;
+            ddy = y;
+
+            setMaxOrMin(x , y);
+
+            int i = (int) Math.floor(x - mPaint.getStrokeWidth());
+            int j = (int) Math.floor(y - mPaint.getStrokeWidth());
+            int k = (int) Math.ceil(x + mPaint.getStrokeWidth());
+            int l = (int) Math.ceil(y + mPaint.getStrokeWidth());
+            invalidate(i, j, k , l);
+
+        }
+
+        private int left;
+        private int right;
+        private int bottom;
+        private int top;
+
+        private boolean isHandlerWriting = false;
+
+        public boolean isHandlerWriting() {
+            return  isHandlerWriting;
+        }
+
+        private void touch_move(float x, float y, MotionEvent event) {
+            float dx = Math.abs(x - mX);
+            float dy = Math.abs(y - mY);
+
+            if (dx >= TOUCH_TOLERANCE || dy >= TOUCH_TOLERANCE) {
+                isHandlerWriting = true;
+                left = this.getLeft();
+                top = this.getTop();
+                bottom = this.getBottom();
+                right = this.getRight();
+                int[] location = new int[2];
+                // 获取view相对于屏幕的绝对位置
+                this.getLocationOnScreen(location);
+                int sx = location[0];
+                int sy = location[1];
+                // 获取点击点相对于屏幕的绝对位置
+                float rx = event.getRawX();
+                float ry = event.getRawY();
+                //左上角的点加上宽度和高度得到view的最大坐标
+                int maxW = right - left + sx;
+                int maxH = bottom - top + sy;
+                if (rx < sx || rx > maxW || ry < sy || ry > maxH) {
+                    return;
+                }
+
+                float tempx = (x + mX) / 2;
+                float tempy = (y + mY) / 2;
+                mPath.quadTo(mX, mY, tempx, tempy);
+                mmPath.quadTo(mX /narrowNum, mY/narrowNum, tempx /2 , tempy/2);
+                mX = x;
+                mY = y;
+
+                setMaxOrMin(x, y);
+
+                float f17 = Math.min(x, Math.min(this.ddx, tempx));
+                float f20 = Math.min(y, Math.min(this.ddy, tempy));
+                float f23 = Math.max(x, Math.max(this.ddx, tempx));
+                float f26 = Math.max(y, Math.max(this.ddy, tempy));
+
+                int i = (int) Math.floor(f17 - mPaint.getStrokeWidth());
+                int j = (int) Math.floor(f20 - mPaint.getStrokeWidth());
+                int k = (int) Math.ceil(f23 + mPaint.getStrokeWidth());
+                int l = (int) Math.ceil(f26 + mPaint.getStrokeWidth());
+                invalidate(i, j, k, l);
+                if(isFirst) {
+                    invalidate();
+                }
+                isFirst = false;
+                this.ddx = tempx;
+                this.ddy = tempy;
+
+            }
+        }
+
+        private void touch_up(float x, float y) {
+
+        }
+
+        /**
+         * 设置写的时候x，y方向的最大最小值
+         * @param x
+         * @param y
+         */
+        private void setMaxOrMin(float x, float y) {
+
+            if (x > maxX) {
+                maxX = x;
+            }
+
+            if ( x < minX) {
+                minX = x;
+            }
+
+            if (y > maxY) {
+                maxY = y;
+            }
+
+            if (y < minY) {
+                minY = y;
+            }
+        }
+
+        /**
+         * 将最大最小值置为0
+         */
+        private void setMaxOrMin() {
+            maxX = 0;
+            minX = 0;
+
+            maxY = 0;
+            minY = 0;
         }
 
         private void drawHandlerWritingBox() {
@@ -403,6 +586,13 @@ public class DrawSignView {
             this.canvasType = canvasType;
         }
 
+        public CanvasPath(Path path) {
+            this.path = path;
+        }
+
+        public CanvasPath(int canvasType) {
+            this.canvasType = canvasType;
+        }
     }
 
     /**

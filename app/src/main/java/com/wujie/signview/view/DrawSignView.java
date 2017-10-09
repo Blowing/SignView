@@ -260,7 +260,34 @@ public class DrawSignView {
         }
 
         private void touch_up(float x, float y) {
+            mPath.lineTo(mX, mY);
+            mmPath.lineTo(mX / narrowNum, mY / narrowNum);
 
+            float f17 = Math.min(this.ddx, x);
+            float f20 = Math.min(this.ddy, y);
+            float f23 = Math.max(this.ddx, x);
+            float f26 = Math.max(this.ddy, y);
+
+            int i = (int) Math.floor(f17) -20;
+            int j = (int) Math.floor(f20) - 20;
+            int k = (int) Math.ceil(f23) + 20;
+            int l = (int) Math.ceil(f26) + 20;
+
+            invalidate(i,j,k,l);
+            if (isHandlerWriting) {
+                timer = new Timer();
+                task = new TimerTask() {
+                    @Override
+                    public void run() {
+                        Message message = new Message();
+                        message.what = 1;
+                        handler.sendMessage(message);
+                        onTouchCount = 0;
+                    }
+                };
+                timer.schedule(task, 500);
+
+            }
         }
 
         /**

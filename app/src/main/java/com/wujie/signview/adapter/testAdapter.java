@@ -20,11 +20,11 @@ public class testAdapter extends RecyclerView.Adapter<testAdapter.MyViewHolder> 
     private List<String> nameList;
     private Context mContext;
 
-    public void setLongItemClickListener(LongItemClickListener longItemClickListener) {
-        this.longItemClickListener = longItemClickListener;
+    public void setLongItemClickListener(View.OnLongClickListener longItemClickListener1) {
+        this.longItemClickListener = longItemClickListener1;
     }
 
-    private LongItemClickListener longItemClickListener;
+    private View.OnLongClickListener longItemClickListener;
 
     public testAdapter(Context context, List<String> nameList) {
         this.mContext = context;
@@ -33,20 +33,18 @@ public class testAdapter extends RecyclerView.Adapter<testAdapter.MyViewHolder> 
 
     @Override
     public MyViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        View convertView = LayoutInflater.from(mContext).inflate(R.layout.item_test_adapter, null);
-        convertView.setOnLongClickListener(new View.OnLongClickListener() {
-            @Override
-            public boolean onLongClick(View v) {
-                return longItemClickListener.onLongItemClick();
-            }
-        });
-        return new MyViewHolder(convertView);
+        View convertView = LayoutInflater.from(mContext).inflate(R.layout.item_test_adapter,
+                null);
+        if(longItemClickListener != null) {
+            convertView.setOnLongClickListener(longItemClickListener);
+        }
+        MyViewHolder myViewHolder = new MyViewHolder(convertView);
+        return myViewHolder;
     }
 
     @Override
     public void onBindViewHolder(MyViewHolder holder, int position) {
         holder.name.setText(nameList.get(position));
-
     }
 
     @Override
@@ -63,9 +61,7 @@ public class testAdapter extends RecyclerView.Adapter<testAdapter.MyViewHolder> 
         }
     }
 
-    public interface LongItemClickListener {
-        public boolean onLongItemClick();
-    }
+
 }
 
 

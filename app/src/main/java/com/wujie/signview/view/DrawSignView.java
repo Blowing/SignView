@@ -774,6 +774,15 @@ public class DrawSignView {
             }
             calculateStation(x, y);
 
+            addSpace(currLineNum, currIndexNum);
+            CanvasPath c = getCanvasPath(currLineNum, currIndexNum -1);
+            if (c == null) {
+                Toast.makeText(getContext(), "光标移动到了顶部", Toast.LENGTH_SHORT);
+                indexChangeListener.indexChanged(fontSpace, spaceY);
+            } else {
+                indexChangeListener.indexChanged(c.getEndX(), c.getStartY());
+            }
+
         }
 
         private boolean calculateStation(float x, float y) {

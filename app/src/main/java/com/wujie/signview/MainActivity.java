@@ -4,6 +4,7 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
@@ -12,6 +13,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
+import com.scwang.smartrefresh.layout.SmartRefreshLayout;
 import com.wujie.signview.adapter.testAdapter;
 
 import java.util.ArrayList;
@@ -22,11 +24,15 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
     private RecyclerView mRecyclerView;
     private testAdapter mAdapter;
     private List<String> nameList = new ArrayList<>();
+    private SmartRefreshLayout smartRefreshLayout;
     private boolean isOnLongClick = false;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        smartRefreshLayout = (SmartRefreshLayout) findViewById(R.id.refreshLayout);
+
         mRecyclerView = (RecyclerView) findViewById(R.id.recyclerView);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 
@@ -38,6 +44,7 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
 //        mAdapter.setLongItemClickListener(this);
 //        mAdapter.setItemClickListener(this);
 
+        SwipeRefreshLayout ss;
         mRecyclerView.setAdapter(mAdapter);
         mRecyclerView.setNestedScrollingEnabled(true);
         mRecyclerView.addOnItemTouchListener(new RecyclerViewClickListener(this, mRecyclerView,

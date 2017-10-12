@@ -750,24 +750,250 @@ public class DrawSignView {
             mPaint.setStyle(Paint.Style.STROKE);
         }
 
+        /**
+         * 根据坐标来设置索引
+         */
+        public void setIndexByStation(float rx, float ry,
+                                      onIndexChangeListener indexChangeListener) {
+            int[] location = new int[2];
+            // 获取view相对于屏幕的绝对位置
+            this.getLocationOnScreen(location);
+            int sx = location[0];
+            int sy = location[1];
+            // 这里根据屏幕点的位置 计算出相对于相对于写字（本子）view的位置
+            float x = rx - sx;
+            float y = ry - sy;
+
+            int width = getWidth();
+            int height = getHeight();
+
+            //超出范围直接不予计算
+            if (x > width || x < 0 || y < 0 || y > height) {
+                Toast.makeText(getContext(), "点击输入区域移动光标.",Toast.LENGTH_SHORT).show();
+                return;
+            }
+            calculateStation(x, y);
+
+        }
+
+        private boolean calculateStation(float x, float y) {
+            int temLine = (int) Math.ceil(y / lineHeight);
+            int maxLine = (int) Math.floor(getHeight() / lineHeight);
+
+            if (temLine > maxLine) {
+                return false;
+            }
+
+            // 在点击区域内有输入的内容
+            if (listPathLine.size() >= temLine) {
+                ArrayList<CanvasPath> tListItem = listPathLine.get(temLine -1);
+                float tx = 0;
+                for (int i = 0; i < tListItem.size(); i++) {
+                    CanvasPath t = tListItem.get(i);
+                    if (x > t.getStartX() && x < t.getEndX()) {
+                        currIndexNum = i;
+                        currLineNum = temLine;
+                        return  true;
+                    }
+
+                    // 点击两字之间的空白区域
+                    if (tx > x && x < t.getStartX()) {
+                        currIndexNum = i ;
+                        currLineNum = temLine;
+                        return true;
+                    }
+
+                    tx = t.getEndX();
+                }
+                // 这种情况是点击行的末尾， 后面没有字的情况
+                if (x >= tx) {
+                    float tempDx = x - tx;
+                    int tempDIndex = (int) Math.floor(tempDx / lineWidth );
+                    currIndexNum = tListItem.size() + tempDIndex;
+                    currLineNum = temLine;
+                    return  true;
+                }
+            } else {
+                // 这种情况就是点击到没数据的区域了
+                int temw = (int) Math.floor(x / lineWidth);
+                currIndexNum = temw;
+                currLineNum = temLine;
+                return true;
+            }
+            Toast.makeText(context, "无效点击", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+
+        private void addSpace(int tLineNum, int tLineIndexNum) {
+            /**
+             * 中间跳过的行数加上
+             */
+            if (listPathLine.size() < tLineNum) {
+                for (int i = listPathLine.size(); i < tLineNum; i++) {
+                    ArrayList<CanvasPath> listLineItem = new ArrayList<>();
+                    // 每一行 加上一个换行
+                    CanvasPath canvasT = new CanvasPath(CanvasPath.C_iCanVasType_enter);
+                    canvasT.setStartX(fontSpace);
+                    canvasT.setStartY(i * lineHeight + spaceY);
+                    canvasT.setEndX(fontSpace);
+                    canvasT.setEndY(canvasT.getStartY() + lineHeight);
+                    canvasT.setMaxX(0);
+                    canvasT.setMaxY(lineHeight);
+
+                    listLineItem.add(0, canvasT);
+
+                    listPathLine.add(i, listLineItem);
+                }
+            }
+
+            ArrayList<CanvasPath> listLineItem = listPathLine.get(tLineNum - 1);
+
+            if (tLineIndexNum >= listLineItem.size()) {
+                float x = 0;
+                if (listLineItem.size() == 0) {
+                    x = fontSpace;
+                } else {
+                    x = listLineItem.get(listLineItem.size() -1).getEndX();
+                }
+                float y = (tLineNum - 1) * lineHeight + spaceY;
+                for (int i = listLineItem.size(); i < tLineIndexNum; i++) {
+                    CanvasPath canvasT = new CanvasPath(CanvasPath.C_iCanVasType_space);
+                    canvasT.setStartX(x);
+                    canvasT.setStartY(y);
+                    canvasT.setEndX(x + lineWidth);
+                    canvasT.setEndY(y + lineHeight);
+                    canvasT.setMaxX(lineWidth);
+                    canvasT.setMaxY(lineHeight);
+                    x = x +lineWidth;
+                    listLineItem.add(i, canvasT);
+                }
+            }
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            if (mBitmap != null && !mBitmap.isRecycled()) {
+                canvas.drawBitmap(mBitmap, 0, 0, null);
+            }
+        }
+
+        public void cleanAll(RevokeListener revokeListener) {
+            if (mBitmap != null) {
+                mBitmap.recycle();
+            }
+            this.mBitmap = Bitmap.createBitmap(getWidth(), getHeight(), Bitmap.Config.ARGB_4444);
+            mCanvas = new Canvas(mBitmap);
+            listPathLine.clear();
+            currLineNum= 1;
+            currIndexNum = 0;
+            if (revokeListener != null) {
+                CanvasPath c = new CanvasPath(CanvasPath.C_icanVasType_handleWriting);
+                c.setStartX(fontSpace);
+                c.setStartY(spaceY);
+                revokeListener.revoked(c);
+            }
+            invalidate();
+        }
+        /**
+         * 撤销一个字
+         */
+        public void revoke(RevokeListener revokeListener) {
+            // 在一行的后面 索引直接 减小索引
+            if (currIndexNum > 0) {
+                currIndexNum--;
+            } else if (currIndexNum == 0) {
+                // 已经在第一行了不能再移动了
+                if (currLineNum == 1) {
+                    return;
+                }
+                currLineNum--;
+                currIndexNum = getLineSize(currLineNum) -1;
+                if (currIndexNum < 0) {
+                    currIndexNum = 0;
+                }
+
+            } else {
+                return;
+            }
+
+        }
+
+        /**
+         *根据位置 得到 路径
+         */
         private CanvasPath getCanvasPath(int lineNum, int indexNum) {
             if (lineNum < 1) {
                 lineNum = 1;
             }
-
             if (indexNum < 0) {
                 indexNum = 0;
             }
+            if (listPathLine.size() < lineNum) {
+                return null;
+            }
+            ArrayList<CanvasPath> tListPath = listPathLine.get(lineNum - 1);
+            if (tListPath == null || tListPath.size() < (indexNum + 1)) {
+                return null;
+            }
 
-            if(listPathLine.size() < lineNum) {
-                return  null;
-            }
-            ArrayList<CanvasPath> tListpath = listPathLine.get(lineNum-1);
-            if (tListpath == null || tListpath.size() < (indexNum + 1)) {
-                return  null;
-            }
-            return  tListpath.get(indexNum);
+            return tListPath.get(indexNum);
+
         }
+
+        /**
+         * 根据位置 得到路径 并且删除
+         * @param lineNum
+         * @param indexNum
+         * @return
+         */
+        private CanvasPath getCanvasPathAndRemove(int lineNum, int indexNum) {
+            if (lineNum < 1) {
+                lineNum = 1;
+                return null;
+            }
+            if (indexNum < 0) {
+                indexNum = 0;
+                return null;
+            }
+
+            if ( listPathLine.size() <lineNum) {
+                return null;
+            }
+
+            ArrayList<CanvasPath> tListPath = listPathLine.get(lineNum -1);
+            if (tListPath == null || tListPath.size() < (indexNum + 1)) {
+                return  null;
+            }
+            return  tListPath.remove(indexNum);
+        }
+
+        /**
+         * 得到某一行的字数
+         * @param lineNum
+         * @return
+         */
+        private int getLineSize(int lineNum) {
+            if (lineNum < 1) {
+                return  -1;
+            }
+            if (listPathLine.size() <lineNum) {
+                return -1;
+            }
+            return listPathLine.get(lineNum - 1).size();
+        }
+
+        public Bitmap getBitmap() {
+            return  mBitmap;
+        }
+    }
+
+    public interface RevokeListener{
+        public void revoked(CanvasPath pp);
+    }
+
+    public interface onIndexChangeListener {
+        public void indexChanged(float x, float y);
     }
 
 

@@ -2,21 +2,22 @@ package com.wujie.signview;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
-import android.view.MotionEvent;
 import android.view.View;
+import android.widget.Toast;
 
 import com.wujie.signview.adapter.testAdapter;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements View.OnLongClickListener{
+public class MainActivity extends AppCompatActivity implements View.OnLongClickListener, View.OnClickListener{
 
     private RecyclerView mRecyclerView;
     private testAdapter mAdapter;
@@ -34,19 +35,25 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
             nameList.add("第"+i+"个");
         }
         mAdapter = new testAdapter(MainActivity.this, nameList);
-        mAdapter.setLongItemClickListener(this);
+//        mAdapter.setLongItemClickListener(this);
+//        mAdapter.setItemClickListener(this);
 
         mRecyclerView.setAdapter(mAdapter);
         mRecyclerView.setNestedScrollingEnabled(true);
-        mRecyclerView.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                Log.i("hehe", "isonLongClick"+ isOnLongClick);
-                return isOnLongClick;
-            }
-        });
+        mRecyclerView.addOnItemTouchListener(new RecyclerViewClickListener(this, mRecyclerView,
+                new RecyclerViewClickListener.OnItemClickListener() {
+                    @Override
+                    public void onItemClick(View view, int position) {
+                        Toast.makeText(MainActivity.this,"Click "+nameList.get(position),Toast
+                                .LENGTH_SHORT).show();
+                    }
 
-
+                    @Override
+                    public void onItemLongClick(View view, int position) {
+                        Toast.makeText(MainActivity.this,"Long Click "+nameList.get(position),Toast
+                                .LENGTH_SHORT).show();
+                    }
+                }));
     }
 
 
@@ -81,5 +88,10 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
                 .create();
         dialog.show();
         return true;
+    }
+
+    @Override
+    public void onClick(View v) {
+        startActivity(new Intent(MainActivity.this, Main2Activity.class));
     }
 }

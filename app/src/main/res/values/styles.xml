@@ -6,4 +6,11 @@
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
     </style>
+
+    <style name="ll_flow_bottom" parent="@android:style/Widget.TextView">
+        <item name="android:background">@drawable/tv_left_navigation_buttom</item>
+        <item name="android:gravity">center</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:height">@dimen/btn_buttom_height</item>
+    </style>
 </resources>

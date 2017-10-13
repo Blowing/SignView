@@ -1,13 +1,10 @@
 package com.wujie.signview.view;
 
-
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Rect;
 import android.support.v4.view.MotionEventCompat;
 import android.support.v4.view.ViewCompat;
-import android.support.v7.widget.LinearLayoutManager;
-import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -22,9 +19,8 @@ import com.wujie.signview.R;
 
 
 /**
- * Created by Troy on 2017-10-10.
+ * 支持各种控件的下拉刷新
  */
-
 public class SpringView extends ViewGroup {
 
     private Context context;
@@ -39,7 +35,8 @@ public class SpringView extends ViewGroup {
     private boolean isFullEnable = false;   //是否超过一屏时才允许上拉，为false则不满一屏也可以上拉，注意样式为isOverlap时，无论如何也不允许在不满一屏时上拉
     private boolean isMoveNow = false;       //当前是否正在拖动
     private long lastMoveTime;
-    private boolean enable = true;           //是否禁用（默认可用）
+    private boolean enableHeader = true;    //是否禁止header下拉（默认可用）
+    private boolean enableFooter = true;    //是否禁止footer上拉（默认可用）
 
     private int MOVE_TIME = 400;
     private int MOVE_TIME_OVER = 200;
@@ -52,14 +49,12 @@ public class SpringView extends ViewGroup {
     public enum Type {OVERLAP, FOLLOW}
 
     private Give give = Give.BOTH;
-    private Type type = Type.OVERLAP;
+    private Type type = Type.FOLLOW;
     private Type _type;
-//    private boolean i1sOverlap = true;       //默认是重叠的样式
-//    private boolean _i1sOverlap;             //保存用户动态设置样式时传入的参数
 
     //移动参数：计算手指移动量的时候会用到这个值，值越大，移动量越小，若值为1则手指移动多少就滑动多少px
     private final double MOVE_PARA = 2;
-    //最大拉动距离，拉动距离越靠近这个值拉动就越缓慢
+    //最大拉动距离(px)，拉动距离越靠近这个值拉动就越缓慢
     private int MAX_HEADER_PULL_HEIGHT = 600;
     private int MAX_FOOTER_PULL_HEIGHT = 600;
     //拉动多少距离被认定为刷新(加载)动作
@@ -74,15 +69,37 @@ public class SpringView extends ViewGroup {
     private float mfirstY;
     //储存手指拉动的总距离
     private float dsY;
-    //滑动事件目前是否在本控件的控制中
+    //滑动事件目前是否在本控件的控制中（用于过渡滑动事件：比如正在滚动recyclerView到顶部后自动切换到SpringView处理后续事件进行下拉）
     private boolean isInControl = false;
     //存储拉动前的位置
     private Rect mRect = new Rect();
 
-    //头尾内容布局
+    //头尾视图
     private View header;
     private View footer;
+    //目标View，即被SpringView包裹的View
     private View contentView;
+    //头尾布局资源id
+    private int headerResoureId;
+    private int footerResoureId;
+
+//    //记录AppBarLayout的当前状态（展开或折叠）
+//    private AppBarStateChangeListener.State appbarState = AppBarStateChangeListener.State.EXPANDED;
+//
+//    @Override
+//    protected void onAttachedToWindow() {
+//        super.onAttachedToWindow();
+//        //解决和CollapsingToolbarLayout冲突的问题
+//        AppBarLayout appBarLayout = SpringHelper.findAppBarLayout(this);
+//        if (appBarLayout != null) {
+//            appBarLayout.addOnOffsetChangedListener(new AppBarStateChangeListener() {
+//                @Override
+//                public void onStateChanged(AppBarLayout appBarLayout, RecyclerView.State state) {
+//                    appbarState = state;
+//                }
+//            });
+//        }
+//    }
 
     public SpringView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -109,9 +126,6 @@ public class SpringView extends ViewGroup {
         }
         ta.recycle();
     }
-
-    private int headerResoureId;
-    private int footerResoureId;
 
     @Override
     protected void onFinishInflate() {
@@ -197,9 +211,10 @@ public class SpringView extends ViewGroup {
         }
     }
 
-
-    private float dy=0;
+    //记录单次滚动x,y轴偏移量
+    private float dy;
     private float dx;
+    //记录当前滚动事件是否需要SpringView进行处理，如果需要则SpringView拦截事件（比如已经滚动到顶部了还继续下拉）
     private boolean isNeedMyMove;
 
     @Override
@@ -207,20 +222,36 @@ public class SpringView extends ViewGroup {
         dealMulTouchEvent(event);
         int action = event.getAction();
         switch (action) {
-            case MotionEvent.ACTION_DOWN:
+            case MotionEvent.ACTION_DOWN: {
                 hasCallFull = false;
                 hasCallRefresh = false;
                 mfirstY = event.getY();
                 boolean isTop = isChildScrollToTop();
-                boolean isBottom = isChildScrollToBottomFull(isFullEnable);
+                boolean isBottom = isChildScrollToBottom();
                 if (isTop || isBottom) isNeedMyMove = false;
                 break;
+            }
             case MotionEvent.ACTION_MOVE:
+                boolean isTop = isChildScrollToTop();
+                boolean isBottom = isChildScrollToBottom();
+                //如果列表内容不满一屏（既已经到最顶部同时有在最底部），这时对appbar进行特殊处理（展开状态向上滚动、折叠状态向下滚动不进行处理）
+                //TODO:列表不满一屏的时候存在拖拽粘滞的情况，有待优化，主要问题是如何将springView已经得到的事件传递给Appbar？
+//                if (isTop && isBottom) {
+//                    if (appbarState == AppBarStateChangeListener.State.EXPANDED && dy < 0) {
+//                        break;
+//                    } else if (appbarState == AppBarStateChangeListener.State.COLLAPSED && dy > 0) {
+//                        break;
+//                    }
+//                }
+//                //appBarLayout处于展开状态 || appBarLayout处于折叠状态并且手势上向上拉，则SpirngView处理滑动事件，否则不处理
+//                if (appbarState == AppBarStateChangeListener.State.EXPANDED || appbarState == AppBarStateChangeListener.State.COLLAPSED && dy < 0) {
+//                } else {
+//                    break;
+//                }
                 dsY += dy;
                 isMoveNow = true;
                 isNeedMyMove = isNeedMyMove();
                 if (isNeedMyMove && !isInControl) {
-
                     //把内部控件的事件转发给本控件处理
                     isInControl = true;
                     event.setAction(MotionEvent.ACTION_CANCEL);
@@ -232,12 +263,10 @@ public class SpringView extends ViewGroup {
                 break;
             case MotionEvent.ACTION_UP:
                 isMoveNow = false;
-//                getParent().requestDisallowInterceptTouchEvent(false);
                 lastMoveTime = System.currentTimeMillis();
                 break;
             case MotionEvent.ACTION_CANCEL:
                 isMoveNow = false;
-//                getParent().requestDisallowInterceptTouchEvent(false);
                 break;
         }
         return super.dispatchTouchEvent(event);
@@ -245,13 +274,7 @@ public class SpringView extends ViewGroup {
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent event) {
-        return isNeedMyMove && enable;
-//        int action = event.getAction();
-//        switch (action){
-//            case MotionEvent.ACTION_MOVE:
-//                return isNeedMyMove;
-//        }
-//        return false;
+        return isNeedMyMove;
     }
 
     @Override
@@ -266,7 +289,7 @@ public class SpringView extends ViewGroup {
                 //if (!mScroller.isFinished()) mScroller.abortAnimation();//不需要处理
                 break;
             case MotionEvent.ACTION_MOVE:
-                getParent().requestDisallowInterceptTouchEvent(true);
+                //getParent().requestDisallowInterceptTouchEvent(true);
                 if (isNeedMyMove) {
                     needResetAnim = false;      //按下的时候关闭回弹
                     //执行位移操作
@@ -302,7 +325,6 @@ public class SpringView extends ViewGroup {
                 }
                 break;
             case MotionEvent.ACTION_UP:
-                last_top = 0;
                 needResetAnim = true;      //松开的时候打开回弹
                 isFirst = true;
                 _firstDrag = true;
@@ -372,8 +394,7 @@ public class SpringView extends ViewGroup {
         }
     }
 
-    private int last_top;
-
+    //执行位移操作
     private void doMove() {
         if (type == Type.OVERLAP) {
             //记录移动前的位置
@@ -401,6 +422,7 @@ public class SpringView extends ViewGroup {
         }
     }
 
+    //回调自定义header/footer OnDropAnim接口
     private void callOnDropAnim() {
         if (type == Type.OVERLAP) {
             if (contentView.getTop() > 0)
@@ -417,6 +439,7 @@ public class SpringView extends ViewGroup {
 
     private boolean _firstDrag = true;
 
+    //回调自定义header/footer OnPreDrag接口
     private void callOnPreDrag() {
         if (_firstDrag) {
             if (isTop()) {
@@ -429,6 +452,7 @@ public class SpringView extends ViewGroup {
         }
     }
 
+    //回调自定义header/footer OnLimitDes接口
     private void callOnLimitDes() {
         boolean topORbottom = false;
         if (type == Type.OVERLAP) {
@@ -516,12 +540,16 @@ public class SpringView extends ViewGroup {
         if (Math.abs(dy) < Math.abs(dx)) {
             return false;
         }
-        //判断内部的listview是否可以滚动
-        if (!isVisDrorp((ViewGroup) contentView)) {
+        boolean isTop = isChildScrollToTop();
+        boolean isBottom = isChildScrollToBottom();
+        //用户禁止了下拉操作，则不控制
+        if (!enableHeader && isTop && dy > 0) {
             return false;
         }
-        boolean isTop = isChildScrollToTop();
-        boolean isBottom = isChildScrollToBottomFull(isFullEnable);     //false不满一屏也算在底部，true不满一屏不算在底部
+        //用户禁止了上拉操作，则不控制
+        if (!enableFooter && isBottom && dy < 0) {
+            return false;
+        }
         if (type == Type.OVERLAP) {
             if (header != null) {
                 if (isTop && dy > 0 || contentView.getTop() > 0 + 20) {
@@ -530,10 +558,6 @@ public class SpringView extends ViewGroup {
             }
             if (footer != null) {
                 if (isBottom && dy < 0 || contentView.getBottom() < mRect.bottom - 20) {
-//                    if (isFullScrean()&&!isFullEnable)
-//                        return true;
-//                    else
-//                        return false;
                     return true;
                 }
             }
@@ -709,13 +733,15 @@ public class SpringView extends ViewGroup {
         }
     }
 
-    public void callFresh() {
+    /**
+     * {@link #callFresh()}的执行方法，不要暴露在外部
+     */
+    private void _callFresh() {
         header.setVisibility(VISIBLE);
         if (type == Type.OVERLAP) {
             if (mRect.isEmpty()) {
                 mRect.set(contentView.getLeft(), contentView.getTop(), contentView.getRight(), contentView.getBottom());
             }
-
             Animation animation = new TranslateAnimation(0, 0, contentView.getTop() - HEADER_SPRING_HEIGHT, mRect.top);
             animation.setDuration(MOVE_TIME_OVER);
             animation.setFillAfter(true);
@@ -797,104 +823,17 @@ public class SpringView extends ViewGroup {
     }
 
     /**
-     * 判断目标View是否滑动到顶部-还能否继续滑动
-     *
-     * @return
+     * 判断目标View是否滑动到顶部 还能否继续滑动
      */
     private boolean isChildScrollToTop() {
-//        if (android.os.Build.VERSION.SDK_INT < 14) {
-//            if (contentView instanceof AbsListView) {
-//                final AbsListView absListView = (AbsListView) contentView;
-//                return !(absListView.getChildCount() > 0 && (absListView
-//                        .getFirstVisiblePosition() > 0 || absListView
-//                        .getChildAt(0).getTop() < absListView.getPaddingTop()));
-//            } else {
-//                return !(contentView.getScrollY() > 0);
-//            }
-//        } else {
-//            return !ViewCompat.canScrollVertically(contentView, -1);
-//        }
         return !ViewCompat.canScrollVertically(contentView, -1);
     }
 
     /**
      * 是否滑动到底部
-     *
-     * @return
      */
-    private boolean isChildScrollToBottomFull(boolean isFull) {
-//        if (isFull){
-//            if (isChildScrollToTop()) {
-//                return false;
-//            }
-//        }
-//        if (contentView instanceof RecyclerView) {
-//            RecyclerView recyclerView = (RecyclerView) contentView;
-//            RecyclerView.LayoutManager layoutManager = recyclerView.getLayoutManager();
-//            int count = recyclerView.getAdapter().getItemCount();
-//            if (layoutManager instanceof LinearLayoutManager && count > 0) {
-//                LinearLayoutManager linearLayoutManager = (LinearLayoutManager) layoutManager;
-//                if (linearLayoutManager.findLastCompletelyVisibleItemPosition() == count - 1) {
-//                    return true;
-//                }
-//            } else if (layoutManager instanceof StaggeredGridLayoutManager) {
-//                StaggeredGridLayoutManager staggeredGridLayoutManager = (StaggeredGridLayoutManager) layoutManager;
-//                int[] lastItems = new int[2];
-//                staggeredGridLayoutManager.findLastCompletelyVisibleItemPositions(lastItems);
-//                int lastItem = Math.max(lastItems[0], lastItems[1]);
-//                if (lastItem == count - 1) {
-//                    return true;
-//                }
-//            }
-//            return false;
-//        } else if (contentView instanceof AbsListView) {
-//            final AbsListView absListView = (AbsListView) contentView;
-//            final Adapter adapter = absListView.getAdapter();
-//            if (null == adapter || adapter.isEmpty()) {
-//                return true;
-//            }
-//            final int lastItemPosition = adapter.getCount() - 1;
-//            final int lastVisiblePosition = absListView.getLastVisiblePosition();
-//            if (lastVisiblePosition >= lastItemPosition - 1) {
-//                final int childIndex = lastVisiblePosition - absListView.getFirstVisiblePosition();
-//                final int childCount = absListView.getChildCount();
-//                final int index = Math.max(childIndex, childCount - 1);
-//                final View lastVisibleChild = absListView.getChildAt(index);
-//                if (lastVisibleChild != null) {
-//                    return lastVisibleChild.getBottom() <= absListView.getBottom()-absListView.getTop();
-//                }
-//            }
-//            return false;
-//        } else if (contentView instanceof ScrollView) {
-//            ScrollView scrollView = (ScrollView) contentView;
-//            View view = scrollView.getChildAt(scrollView.getChildCount() - 1);
-//            if (view != null) {
-//                int diff = (view.getBottom() - (scrollView.getHeight() + scrollView.getScrollY()));
-//                if (diff == 0) {
-//                    return true;
-//                }
-//                if(!isFull) {
-//                    //如果scrollView中内容不满一屏，也算在底部
-//                    if (view.getMeasuredHeight() <= scrollView.getMeasuredHeight()) {
-//                        return true;
-//                    }
-//                }
-//            }
-//        }
-//        return false;
-        return !ViewCompat.canScrollVertically(contentView, 1);
-    }
-
     private boolean isChildScrollToBottom() {
-        return isChildScrollToBottomFull(true);
-    }
-
-    private boolean isFullScrean() {
-        boolean isBottom = isChildScrollToBottomFull(false);
-        if (isBottom) {
-            return isChildScrollToBottomFull(true);
-        }
-        return true;
+        return !ViewCompat.canScrollVertically(contentView, 1);
     }
 
     /**
@@ -922,7 +861,7 @@ public class SpringView extends ViewGroup {
     }
 
     /**
-     * 判断当前状态是否拉动顶部
+     * 判断当前状态是否拉动到顶部
      */
     private boolean isTop() {
         if (type == Type.OVERLAP) {
@@ -933,6 +872,9 @@ public class SpringView extends ViewGroup {
             return false;
     }
 
+    /**
+     * 判断当前状态是否拉动到底部
+     */
     private boolean isBottom() {
         if (type == Type.OVERLAP) {
             return contentView.getTop() < 0;
@@ -942,6 +884,9 @@ public class SpringView extends ViewGroup {
             return false;
     }
 
+    /**
+     * 判断当前滚动位置是否已经进入可折叠范围了
+     */
     private boolean isFlow() {
         if (type == Type.OVERLAP) {
             return contentView.getTop() < 30 && contentView.getTop() > -30;
@@ -952,8 +897,8 @@ public class SpringView extends ViewGroup {
     }
 
     /**
-     * 切换Type的方法，之所以不暴露在外部，是防止用户在拖动过程中调用造成布局错乱
-     * 所以在外部方法中设置标志，然后在拖动完毕后判断是否需要调用，是则调用
+     * 切换Type的执行方法，之所以不暴露在外部，是防止用户在拖动过程中调用造成布局错乱，虽然并不会有人这样做
+     * 所以在外部方法{@link #setType(Type)}中设置标志，然后在拖动完毕后判断是否需要调用，是则调用本方法执行切换
      */
     private void changeType(Type type) {
         this.type = type;
@@ -978,11 +923,19 @@ public class SpringView extends ViewGroup {
                 if (contentView instanceof ListView) {
                     //((ListView) contentView).smoothScrollByOffset(1);
                     //刷新后调用，才能正确显示刷新的item，如果调用上面的方法，listview会被固定在底部
-//                    ((ListView) contentView).smoothScrollBy(-1,0);
+                    //在版本更新中，这个问题已经被修复，保留注释
+                    //((ListView) contentView).smoothScrollBy(-1,0);
                 }
                 resetPosition();
             }
         }
+    }
+
+    /**
+     * 手动调用该方法使SpringView进入拉动更新的状态
+     */
+    public void callFresh() {
+        _callFresh();
     }
 
     public void setMoveTime(int time) {
@@ -997,11 +950,28 @@ public class SpringView extends ViewGroup {
      * 是否禁用SpringView
      */
     public void setEnable(boolean enable) {
-        this.enable = enable;
+        this.enableHeader = enable;
+        this.enableFooter = enable;
     }
 
     public boolean isEnable() {
-        return enable;
+        return enableHeader && enableFooter;
+    }
+
+    public boolean isEnableHeader() {
+        return enableHeader;
+    }
+
+    public void setEnableHeader(boolean enableHeader) {
+        this.enableHeader = enableHeader;
+    }
+
+    public boolean isEnableFooter() {
+        return enableFooter;
+    }
+
+    public void setEnableFooter(boolean enableFooter) {
+        this.enableFooter = enableFooter;
     }
 
     /**
@@ -1118,38 +1088,6 @@ public class SpringView extends ViewGroup {
         this.footer = getChildAt(getChildCount() - 1);
         contentView.bringToFront(); //把内容放在最前端
         requestLayout();
-    }
-
-
-    public boolean isVisDrorp(ViewGroup viewGroup) {
-
-        View viewChild = viewGroup.getChildAt(0);
-        if (viewChild instanceof RecyclerView) {
-            RecyclerView recyclerView = (RecyclerView) viewChild;
-            LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
-
-            if(dy>0){//下拉
-                //第一个可见item的位置
-                int firstVisibleItemPosition = layoutManager.findFirstCompletelyVisibleItemPosition();
-                if (firstVisibleItemPosition == 0) {
-                    return true;
-                }
-            }else{
-                //屏幕中最后一个可见子项的position
-                int lastVisibleItemPosition = layoutManager.findLastVisibleItemPosition();
-                //当前屏幕所看到的子项个数
-                int visibleItemCount = layoutManager.getChildCount();
-                //当前RecyclerView的所有子项个数
-                int totalItemCount = layoutManager.getItemCount();
-                //RecyclerView的滑动状态
-                int state = recyclerView.getScrollState();
-                if (visibleItemCount > 0 && lastVisibleItemPosition == totalItemCount - 1 && state == recyclerView.SCROLL_STATE_IDLE) {
-                    return true;
-                }
-            }
-        }
-        return false;
-
     }
 
     public interface DragHander {

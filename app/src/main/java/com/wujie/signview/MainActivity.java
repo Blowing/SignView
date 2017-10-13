@@ -13,26 +13,33 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
-import com.scwang.smartrefresh.layout.SmartRefreshLayout;
 import com.wujie.signview.adapter.testAdapter;
+import com.wujie.signview.view.DefaultHeader;
+import com.wujie.signview.view.SpringView;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements View.OnLongClickListener, View.OnClickListener{
+public class MainActivity extends AppCompatActivity implements View.OnLongClickListener, View
+        .OnClickListener, SpringView.OnFreshListener{
 
     private RecyclerView mRecyclerView;
+    private SpringView mSpringView;
     private testAdapter mAdapter;
     private List<String> nameList = new ArrayList<>();
-    private SmartRefreshLayout smartRefreshLayout;
+    //private SmartRefreshLayout smartRefreshLayout;
     private boolean isOnLongClick = false;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        smartRefreshLayout = (SmartRefreshLayout) findViewById(R.id.refreshLayout);
-
+        //smartRefreshLayout = (SmartRefreshLayout) findViewById(R.id.refreshLayout);
+        mSpringView = (SpringView)findViewById(R.id.spring_view);
+        //mSpringView.setEnable(true);
+       mSpringView.setHeader(new DefaultHeader(MainActivity.this));
+        mSpringView.setListener(this);
+        mSpringView.setType(SpringView.Type.FOLLOW);
         mRecyclerView = (RecyclerView) findViewById(R.id.recyclerView);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 
@@ -100,5 +107,15 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
     @Override
     public void onClick(View v) {
         startActivity(new Intent(MainActivity.this, Main2Activity.class));
+    }
+
+    @Override
+    public void onRefresh() {
+        Log.i("hehe", "刷星");
+    }
+
+    @Override
+    public void onLoadmore() {
+
     }
 }

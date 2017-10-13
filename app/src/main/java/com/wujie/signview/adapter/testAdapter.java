@@ -2,9 +2,7 @@ package com.wujie.signview.adapter;
 
 import android.content.Context;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
@@ -49,13 +47,7 @@ public class testAdapter extends RecyclerView.Adapter<testAdapter.MyViewHolder> 
         if(itemClicListener != null) {
             convertView.setOnClickListener(itemClicListener);
         }
-        convertView.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                Log.i("hehe", "x="+event.getRawX()+"y="+event.getRawY());
-                return false;
-            }
-        });
+
 
        MyViewHolder myViewHolder = new MyViewHolder(convertView);
         return myViewHolder;

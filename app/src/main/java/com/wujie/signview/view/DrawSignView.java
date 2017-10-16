@@ -1,5 +1,6 @@
 package com.wujie.signview.view;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -15,9 +16,12 @@ import android.os.Handler;
 import android.os.Message;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import com.wujie.signview.R;
+import com.wujie.signview.model.SignEntity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +40,15 @@ public class DrawSignView {
 
 
     public static final int thight = 80;
+
+    public View getView() {
+        return view;
+    }
+
+    private View view = null;
+
+    LinearLayout showColor;
+    private Activity baseActivity;
     /**
      * 用来写字的View
      */
@@ -78,6 +91,8 @@ public class DrawSignView {
 
         private Bitmap bitmap;
         private Canvas canvas;
+
+
 
         public PathListener getPathListener() {
             return pathListener;
@@ -1015,6 +1030,120 @@ public class DrawSignView {
 
         public void onPath(CanvasPath myPath);
     }
+
+    public interface ColorChangeListener {
+        public void colorChanged(int colorId);
+    }
+
+    class SelectControl {
+        LinearLayout selectColorBlack;
+        LinearLayout selectColorBlue;
+        LinearLayout selectColorRed;
+
+        ColorChangeListener colorChangeListener;
+        ImageView imgSelecColor;
+
+        public SelectControl(ColorChangeListener colorChangeListener) {
+            this.colorChangeListener = colorChangeListener;
+            selectColorBlack = (LinearLayout) view.findViewById(R.id.ll_selectClore_black);
+            selectColorBlue = (LinearLayout) view.findViewById(R.id.ll_selectClore_blue);
+            selectColorRed = (LinearLayout) view.findViewById(R.id.ll_selectClore_red);
+
+            imgSelecColor = (ImageView) view.findViewById(R.id.img_sign_operate_corle);
+            initColorSelect();
+        }
+
+        public void initColorSelect(int type) {
+            switch (type) {
+                case SignEntity.C_iSignPiantColor_Black:
+                    setSelectBg(selectColorBlack);
+                    imgSelecColor.setImageResource(R.drawable.ic_pen_color_black);
+                    break;
+                case SignEntity.C_iSignPiantColor_Blue:
+                    setSelectBg(selectColorBlue);
+                    imgSelecColor.setImageResource(R.drawable.ic_pen_color_blue);
+                    break;
+                case SignEntity.C_iSignPiantColor_Red:
+                    setSelectBg(selectColorRed);
+                    imgSelecColor.setImageResource(R.drawable.ic_pen_color_red);
+                    break;
+                default:
+                    setSelectBg(selectColorBlack);
+                    imgSelecColor.setImageResource(R.drawable.ic_pen_color_black);
+                    break;
+            }
+        }
+
+        public int getColorByType(int type) {
+            switch (type) {
+                case SignEntity.C_iSignPiantColor_Red:
+                    return baseActivity.getResources().getColor(R.color.sign_red);
+                case SignEntity.C_iSignPiantColor_Black:
+                    return baseActivity.getResources().getColor(R.color.sign_black);
+                case SignEntity.C_iSignPiantColor_Blue:
+                    return baseActivity.getResources().getColor(R.color.sign_blue);
+                default:
+                    return baseActivity.getResources().getColor(R.color.sign_black);
+            }
+        }
+
+        private void setSelectBg(View v) {
+
+        }
+        private void callBack(int id) {
+            if (showColor.getVisibility() == View.VISIBLE) {
+                showColor.setVisibility(View.GONE);
+            }
+            if (id == R.id.ll_selectClore_black) {
+                setSelectBg(selectColorBlack);
+                imgSelecColor.setImageResource(R.drawable.ic_pen_color_black);
+            } else if (id == R.id.ll_selectClore_blue) {
+                setSelectBg(selectColorBlue);
+                imgSelecColor.setImageResource(R.drawable.ic_pen_color_blue);
+            } else if (id == R.id.ll_selectClore_red) {
+                setSelectBg(selectColorRed);
+                imgSelecColor.setImageResource(R.drawable.ic_pen_color_red);
+            }
+
+            if (colorChangeListener == null) {
+                return;
+            }
+
+            if (id == R.id.ll_selectClore_black) {
+                colorChangeListener.colorChanged(R.color.sign_black);
+            } else if (id == R.id.ll_selectClore_blue) {
+                colorChangeListener.colorChanged(R.color.sign_blue);
+            } else if (id == R.id.ll_selectClore_red) {
+                colorChangeListener.colorChanged(R.color.sign_red);
+            }
+        }
+
+
+        private void initColorSelect() {
+            selectColorBlack.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    callBack(R.id.ll_selectClore_black);
+                }
+            });
+
+            selectColorBlue.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    callBack(R.id.ll_selectClore_blue);
+                }
+            });
+
+            selectColorRed.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    callBack(R.id.ll_selectClore_red);
+                }
+            });
+        }
+    }
+
+
 
 
     public class Background extends View {

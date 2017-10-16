@@ -16,8 +16,10 @@ import android.os.Handler;
 import android.os.Message;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import com.wujie.signview.R;
@@ -1012,6 +1014,51 @@ public class DrawSignView {
         }
     }
 
+    public interface PaintParamsChangeListener {
+        public void makeChange(BasePaintParameters basePaintParameters);
+    }
+
+    /**
+     * 画笔的基础参数
+     */
+    public class BasePaintParameters {
+        /**
+         * 字和字之间的距离
+          */
+        private float fontSpacing = 5;
+
+        private float baseSpacing = 20;
+
+        /**
+         * 字体缩小的倍数
+         */
+        private int fontSize = 10;
+
+        /**
+         * 笔记宽度
+         */
+        private float pointWeight = 15;
+
+        private int paintColor = 0xFFFF0000;
+
+        private int fontHeight = 50;
+
+        public int getFontHeight() {
+            return fontHeight;
+        }
+
+        public void setFontHeight(int fontHeight) {
+            this.fontHeight = fontHeight;
+        }
+
+        private PaintParamsChangeListener changeListener;
+
+        public BasePaintParameters() {
+            baseSpacing = baseSpacing / fontSize;
+            paintColor = baseActivity.getResources().getColor(R.color.sign_black);
+        }
+    }
+
     public interface RevokeListener{
         public void revoked(CanvasPath pp);
     }
@@ -1033,6 +1080,33 @@ public class DrawSignView {
 
     public interface ColorChangeListener {
         public void colorChanged(int colorId);
+    }
+
+    public class ControlView extends RelativeLayout {
+        private WindowManager mWindowManager;
+        private WindowManager.LayoutParams mWindowParams;
+
+        private Paint canvasPaint;
+        private Paint gbPaint;
+        private Paint writLinePaint;
+        private Paint backgroundPaint;
+        private Context context;
+
+        private BasePaintParameters basePaintParameters;
+
+        WriteLineView writeLineView ;
+        CanvasView canvasView;
+        Background background;
+
+        float currX = 5;
+        float currY = 7;
+
+        private float lineHeight;
+
+        public ControlView(Context context) {
+            super(context);
+
+        }
     }
 
     class SelectControl {

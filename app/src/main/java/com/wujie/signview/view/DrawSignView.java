@@ -2,6 +2,7 @@ package com.wujie.signview.view;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -9,11 +10,14 @@ import android.graphics.DashPathEffect;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PathEffect;
+import android.graphics.PixelFormat;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Handler;
 import android.os.Message;
+import android.os.Vibrator;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
@@ -23,6 +27,7 @@ import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import com.wujie.signview.R;
+import com.wujie.signview.database.SignDataBase;
 import com.wujie.signview.model.SignEntity;
 
 import java.util.ArrayList;
@@ -51,6 +56,17 @@ public class DrawSignView {
 
     LinearLayout showColor;
     private Activity baseActivity;
+
+    private long currUserID;
+    private int canvasWidth = 0;
+    private int canvasHeight = 0;
+
+    SignDataBase signData;
+    private SignView signView;
+    String signName = null;
+
+    private Bitmap sigleBitmap = null;
+
     /**
      * 用来写字的View
      */
@@ -93,6 +109,7 @@ public class DrawSignView {
 
         private Bitmap bitmap;
         private Canvas canvas;
+
 
 
 
@@ -408,6 +425,107 @@ public class DrawSignView {
             mPaint.setPathEffect(null);
             mPaint.setStrokeWidth(t);
 
+        }
+
+    }
+
+    /**
+     * 显示签章的View
+     */
+    public class SignView extends View {
+
+        List<CanvasPath> signPathList = new ArrayList<>();
+        CanvasPath currTemp;
+
+        public SignView(Context context) {
+            super(context);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            if (currTemp != null) {
+                canvas.drawBitmap(currTemp.getBitmap(), currTemp.getStartX(),
+                        currTemp.getStartY(), null);
+            }
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent event) {
+            return super.onTouchEvent(event);
+        }
+
+        /**
+         * 加入一个 签章数据
+         */
+        public void addSignPath(CanvasPath signPath) {
+            if (signPathList != null) {
+                for (CanvasPath tSignPath : signPathList) {
+                    float stX = tSignPath.getStartX();
+                    float stY = tSignPath.getStartY();
+                    if ((stX + signPath.getBitmap().getWidth()) > getWidth()) {
+                        stX = getWidth() - signPath.getBitmap().getWidth();
+                    }
+                    if ((stY + signPath.getBitmap().getHeight()) > getHeight()) {
+                        stY = getHeight() - signPath.getBitmap().getHeight();
+                    }
+                    signPath.setStartX(stX);
+                    signPath.setStartY(stY);
+                    signPath.setEndX(signPath.getStartX() + signPath.getBitmap().getWidth());
+                    signPath.setEndY(signPath.getStartY() + signPath.getBitmap().getHeight());
+                }
+            }
+            signPathList.clear();
+            signPathList.add(signPath);
+            currTemp = signPath;
+            invalidate();
+        }
+
+        public CanvasPath getSignPath() {
+            if (signPathList != null && signPathList.size() > 0) {
+                return  signPathList.get(0);
+            }
+            return  null;
+        }
+
+        private void clearAll() {
+            signName = "";
+            signPathList.clear();
+            currTemp = null;
+            invalidate();
+        }
+
+        /**
+         * 移动CanvasPath dx dy
+         */
+
+        public void moveSignBitmap(CanvasPath canvasPath, float dx, float dy) {
+            int width = getWidth();
+            int height = getHeight();
+
+            if (canvasPath.getStartX() + dx > 0 && canvasPath.getStartX() + dx <
+                    width - canvasPath.getBitmap().getWidth()) {
+                canvasPath.setStartX(canvasPath.getStartX() + dx);
+            } else  if (canvasPath.getStartX() + dx < 0) {
+                canvasPath.setStartX(0);
+            } else {
+                canvasPath.setStartX(width - canvasPath.getBitmap().getWidth());
+            }
+
+            if (canvasPath.getStartY() + dy > 0 && canvasPath.getStartY() + dy <
+                    height - canvasPath.getBitmap().getHeight()) {
+                canvasPath.setStartY(canvasPath.getStartY() + dy);
+            } else if (canvasPath.getStartY() + dy < 0) {
+                canvasPath.setStartY(0);
+            } else {
+                canvasPath.setStartY(height - canvasPath.getBitmap().getHeight());
+            }
+
+            canvasPath.setEndX(canvasPath.getStartX() + canvasPath.getBitmap().getWidth());
+            canvasPath.setEndY(canvasPath.getStartY() + canvasPath.getBitmap().getHeight());
+
+            currTemp = canvasPath;
+            invalidate();
         }
 
     }
@@ -1039,7 +1157,15 @@ public class DrawSignView {
          */
         private float pointWeight = 15;
 
+        public float getPointWeight() {
+            return  pointWeight;
+        }
+
         private int paintColor = 0xFFFF0000;
+
+        private int getPaintColor() {
+            return paintColor;
+        }
 
         private int fontHeight = 50;
 
@@ -1083,6 +1209,59 @@ public class DrawSignView {
     }
 
     public class ControlView extends RelativeLayout {
+
+        private void startDragging(CanvasPath signPath, int x, int y) {
+            stopDragging(0, 0);
+            mWindowParams = new WindowManager.LayoutParams();
+            mWindowParams.gravity = Gravity.LEFT | Gravity.TOP;
+            mWindowParams.x = x;
+            mWindowParams.y = y;
+
+            mWindowParams.height = WindowManager.LayoutParams.WRAP_CONTENT;
+            mWindowParams.width = WindowManager.LayoutParams.WRAP_CONTENT;
+            mWindowParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                    | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                    | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                    | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                    | WindowManager.LayoutParams.FLAG_DITHER;
+            mWindowParams.format = PixelFormat.TRANSLUCENT;
+            mWindowParams.windowAnimations = 0;
+
+            ImageView v = new ImageView(getContext());
+            v.setImageBitmap(signPath.getBitmap());
+
+            Vibrator mVibrator = (Vibrator) baseActivity.getSystemService(Activity
+                    .VIBRATOR_SERVICE);
+            mVibrator.vibrate(100);
+            mWindowManager = (WindowManager) getContext().getSystemService("window");
+            mWindowManager.addView(v, mWindowParams);
+            mDragView = v;
+        }
+
+        private void dragView(int dx, int dy) {
+            float alpha = 1.0f;
+            mWindowParams.alpha = alpha;
+            mWindowParams.y = mWindowParams.y + dy;
+            mWindowParams.x = mWindowParams.x + dx;
+
+            mWindowManager.updateViewLayout(mDragView, mWindowParams);
+        }
+
+        ImageView mDragView;
+        private void stopDragging(float dx, float dy) {
+            if (mDragView != null) {
+                WindowManager wm = (WindowManager) getContext().getSystemService("window");
+                wm.removeView(mDragView);
+                mDragView.setImageDrawable(null);
+                mDragView = null;
+            }
+            if (dx != 0 || dy != 0) {
+                signView.moveSignBitmap(moveSignPath, dx, dy);
+            }
+            moveSignView.setVisibility(View.VISIBLE);
+        }
+
+
         private WindowManager mWindowManager;
         private WindowManager.LayoutParams mWindowParams;
 
@@ -1103,9 +1282,439 @@ public class DrawSignView {
 
         private float lineHeight;
 
+        private List<CanvasPath> historyCanvas;
+
         public ControlView(Context context) {
             super(context);
+            this.context = context;
+            basePaintParameters = new BasePaintParameters();
+            initBackgroundPaint();// 初始化背景 画笔
+            initCanvasPaint();// 初始化画板
+            initCustomerPaint();//初始 光标 画笔
+            initPaint();// 初始化 写字画笔
+            addAllView();
+            setWillNotDraw(false);
 
+        }
+
+        private void addAllView() {
+            this.removeAllViews();
+            lineHeight = thight + 10;
+
+            WindowManager wm = (WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE);
+            int width = wm.getDefaultDisplay().getWidth();
+
+            canvasView = new CanvasView(context, canvasPaint, width);
+            RelativeLayout.LayoutParams l = new LayoutParams(width, width);
+            l.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+            l.addRule(RelativeLayout.CENTER_HORIZONTAL);
+            canvasView.setLayoutParams(l);
+
+            canvasView.setPathListener(new PathListener() {
+                @Override
+                public void onPath(CanvasPath myPath) {
+                    writeLineView.write(myPath, new WriteListener() {
+                        @Override
+                        public void writed(CanvasPath pp) {
+                            if (pp.getStartY() - 7 > writeLineView.getHeight() - lineHeight) {
+                                Toast.makeText(context, "达到输入上限", Toast.LENGTH_SHORT);
+                                return;
+                            }
+                            currX = pp.getEndX();
+                            currY = pp.getStartY();
+                            background.next(currX, currY); // 移动鼠标
+
+                            if (historyCanvas != null && historyCanvas.size() > 0) {
+                                String [] userID = { currUserID+ "", SignEntity
+                                        .C_iSignPopType_Cursor +""};
+                                SignEntity entity = signData.getSignEntityByUserIDAndPopType
+                                        (userID);
+                                if (entity == null) {
+                                    entity = new SignEntity();
+                                    entity.userId = currUserID +"";
+                                    entity.popType = SignEntity.C_iSignPopType_Cursor;
+                                    entity.hasState = 0;
+                                    signData.insert(entity);
+
+                                    Intent intent = new Intent();
+                                    intent.setAction("com.seeyon.mobile.notification");
+                                    intent.putExtra("content", "长按屏幕可以修改光标的起始位置");
+                                    baseActivity.sendBroadcast(intent);
+                                }
+                                if (historyCanvas == null) {
+                                    historyCanvas = new ArrayList<CanvasPath>();
+                                }
+                                historyCanvas.add(pp);
+                            }
+                        }
+                    });
+                }
+            });
+
+            setOnLongClickListener(null);
+            if (canvasWidth == 0) {
+                canvasWidth = LayoutParams.MATCH_PARENT;
+            }
+
+            if (canvasHeight == 0) {
+                canvasHeight = LayoutParams.MATCH_PARENT;
+            }
+
+            LayoutParams ll = new LayoutParams(canvasWidth, canvasHeight);
+            ll.addRule(RelativeLayout.CENTER_HORIZONTAL);
+            writeLineView = new WriteLineView(context, writLinePaint, lineHeight);
+            background = new Background(context, gbPaint, lineHeight);
+
+            signView = new SignView(context);
+            writeLineView.setLayoutParams(ll);
+            background.setLayoutParams(ll);
+            signView.setLayoutParams(ll);
+
+            this.addView(writeLineView, 0);
+            this.addView(background, 0);
+            this.addView(canvasView, 0);
+            this.addView(signView, 0);
+
+            invalidate();
+
+        }
+
+        public void finish() {
+
+        }
+
+        public void revoke() {
+            writeLineView.revoke(new RevokeListener() {
+                @Override
+                public void revoked(CanvasPath pp) {
+                    currX = pp.getStartX();
+                    currY = pp.getStartY();
+                    background.next(currX, currY);
+                }
+            });
+        }
+
+        public void cleanAll() {
+            writeLineView.cleanAll(new RevokeListener() {
+                @Override
+                public void revoked(CanvasPath pp) {
+                    currX = pp.getStartX();
+                    currY = pp.getStartY();
+                    background.next(currX, currY);
+                }
+            });
+
+            if (signView != null) {
+                signView.clearAll();
+            }
+        }
+
+        public void cleanSign() {
+            if (signView != null) {
+                signView.clearAll();
+            }
+        }
+
+        public Bitmap getWriteBitMap() {
+            Bitmap bb = writeLineView.getBitmap();
+            float[] maxXY = writeLineView.getMaxXY();
+
+            CanvasPath tsignPath = signView.getSignPath();
+            if (tsignPath == null && maxXY[0] == 0 && maxXY[1] == 0) {
+                return  null;
+            }
+            if (bb == null && tsignPath != null) {
+                return tsignPath.getBitmap();
+            }
+            float signEndX = 0;
+            float signEndY = 0;
+            if (tsignPath != null) {
+                signEndX = tsignPath.getStartX() + tsignPath.getBitmap().getWidth();
+                signEndY = tsignPath.getStartY() + tsignPath.getBitmap().getHeight();
+            }
+
+            float maxX = maxXY[0];
+            float maxY = maxXY[1];
+
+            int amaxX = (int) Math.ceil(Math.max(signEndX, maxX));
+            int amaxY = (int) Math.ceil(Math.max(signEndY, maxY));
+
+            Bitmap mBitMap = Bitmap.createBitmap(amaxX, amaxY, Bitmap.Config.ARGB_4444);
+            Canvas c = new Canvas(mBitMap);
+            if (tsignPath != null) {
+                c.drawBitmap(tsignPath.getBitmap(), tsignPath.getStartX(), tsignPath.getStartY(),
+                        null);
+            }
+            if (bb != null) {
+                c.drawBitmap(bb, 0, 0, null);
+            }
+
+            return mBitMap;
+        }
+
+        public void setColor(int color) {
+             canvasPaint.setColor(color);
+            writLinePaint.setColor(color);
+        }
+
+
+        /**
+         * 初始化 光标的 画笔
+         */
+        private  void initCustomerPaint() {
+            gbPaint = new Paint();
+            gbPaint.setAntiAlias(true);
+            gbPaint.setDither(true);
+            gbPaint.setStyle(Paint.Style.STROKE);
+            gbPaint.setStrokeJoin(Paint.Join.ROUND);
+            gbPaint.setStrokeCap(Paint.Cap.ROUND);
+
+            gbPaint.setStrokeWidth(2);
+            gbPaint.setColor(Color.BLACK);
+        }
+        /**
+         * 初始化写字的画笔
+         */
+        private void initPaint() {
+            writLinePaint = new Paint();
+            writLinePaint.setAntiAlias(true);
+            writLinePaint.setDither(true);
+            writLinePaint.setStyle(Paint.Style.STROKE);
+            writLinePaint.setStrokeCap(Paint.Cap.ROUND);
+            writLinePaint.setStrokeJoin(Paint.Join.ROUND);
+
+            writLinePaint.setStrokeWidth(2);
+            writLinePaint.setColor(basePaintParameters.getPaintColor());
+        }
+
+        /**
+         * 初始化背景线条 画笔
+         */
+        private void initBackgroundPaint() {
+            backgroundPaint = new Paint();
+            backgroundPaint.setAntiAlias(true);
+            backgroundPaint.setDither(true); //设置是否抖动
+            backgroundPaint.setStyle(Paint.Style.STROKE);
+            backgroundPaint.setStrokeJoin(Paint.Join.ROUND);
+            backgroundPaint.setStrokeCap(Paint.Cap.ROUND);
+            backgroundPaint.setStrokeWidth(1);
+            backgroundPaint.setColor(Color.GREEN);
+        }
+
+        /**
+         * 初始化画板的画笔
+         */
+        private void initCanvasPaint() {
+            canvasPaint = new Paint();
+            canvasPaint.setAntiAlias(true);
+            canvasPaint.setDither(true);
+            canvasPaint.setStyle(Paint.Style.STROKE);
+            canvasPaint.setStrokeJoin(Paint.Join.ROUND);
+            canvasPaint.setStrokeWidth(basePaintParameters.getPointWeight());
+            canvasPaint.setColor(basePaintParameters.getPaintColor());
+        }
+
+        public void addSignView(Bitmap bitmap) {
+            String[] userID = { currUserID + "",
+                SignEntity.C_iSignPopType_Sign + ""};
+            SignEntity entity = signData.getSignEntityByUserIDAndPopType(userID);
+            if (entity == null) {
+                entity = new SignEntity();
+                entity.userId = currUserID+"";
+                entity.popType = SignEntity.C_iSignPopType_Sign;
+                entity.hasState = 0;
+                signData.insert(entity);
+
+                Intent intent = new Intent();
+                intent.setAction("com.seeyon.mobile.notifacation");
+                intent.putExtra("content", "按住印章，选择盖章位置");
+                baseActivity.sendBroadcast(intent);
+            }
+            sigleBitmap = bitmap;
+            CanvasPath signPath = new CanvasPath(CanvasPath.C_icanVasType_handleWriting);
+            signPath.setBitmap(bitmap);
+
+            float stX = currX;
+            float stY = currY + lineHeight;
+            if ((currX + bitmap.getWidth()) > writeLineView.getWidth()) {
+                stX = writeLineView.getWidth() - bitmap.getWidth();
+            }
+            if ((currY + lineHeight + bitmap.getHeight()) > writeLineView.getHeight()) {
+                stY = writeLineView.getHeight() - bitmap.getHeight();
+            }
+
+            signPath.setStartX(stX);
+            signPath.setStartY(stY);
+            signPath.setEndX(signPath.getStartX()+ bitmap.getWidth());
+            signPath.setEndY(signPath.getStartY() + bitmap.getHeight());
+
+            if (historyCanvas == null) {
+                historyCanvas = new ArrayList<CanvasPath>();
+            }
+            historyCanvas.add(signPath);
+            signView.addSignPath(signPath);
+        }
+
+        /**
+         * 是否为移动光标
+         */
+        private boolean isMoveCuros = false;
+        /**
+         * 是否为移动签章
+         */
+        private boolean isMoveSi = false;
+
+        private SignView moveSignView = null;
+        private CanvasPath moveSignPath = null;
+        /**
+         * 记录光标移动的上一个点的X的坐标
+         */
+        float mx;
+        /**
+         * 记录光标移动的上一个点的Y的坐标
+         */
+        float my;
+
+        @Override
+        public boolean onInterceptTouchEvent(MotionEvent ev) {
+            if (onTouchEvent(ev)) {
+                canvasView.clearCanvasView();
+                return  true;
+            }
+            boolean a = super.onInterceptTouchEvent(ev);
+            return a;
+        }
+
+        @Override
+        public void setOnLongClickListener(OnLongClickListener l) {
+            super.setOnLongClickListener(new OnLongClickListener() {
+                @Override
+                public boolean onLongClick(View v) {
+                    int tt = dip2px(context, 4);
+                    if (Math.abs(maxRX - rx) < tt && Math.abs(maxRY - ry) < tt) {
+                        if (!canvasView.isHandlerWriting() && !isMoveSi) {
+                            canvasView.clearCanvasView();
+                            writeLineView.setIndexByStation(rx, ry, new onIndexChangeListener() {
+                                @Override
+                                public void indexChanged(float x, float y) {
+                                    currX = x;
+                                    currY = y;
+                                    background.next(currX, currY);
+                                }
+                            });
+                            isMoveCuros = true;
+                        }
+                    }
+                    return false;
+                }
+            });
+        }
+
+
+        int startDrowX;
+        int startDrowY;
+        boolean isCondition = false;
+
+        float maxRX;
+        float maxRY;
+
+        float rx;
+        float ry;
+        float orx;
+        float ory;
+
+        @Override
+        public boolean onTouchEvent(MotionEvent event) {
+            super.onTouchEvent(event);
+            if (showColor != null && showColor.getVisibility() == View.VISIBLE) {
+                showColor.setVisibility(View.GONE);
+            }
+            float x = event.getX();
+            float y = event.getY();
+            rx = event.getRawX();
+            ry = event.getRawY();
+
+            int sx = 0;
+            int sy = 0;
+
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    maxRX = rx;
+                    maxRY = ry;
+                    orx = rx;
+                    ory = ry;
+                    int[] location = new int[2];
+                    signView.getLocationOnScreen(location);
+                    sx = location[0];
+                    sy = location[1];
+                    break;
+            }
+            if (maxRX < rx) {
+                maxRX = rx;
+            }
+            if (maxRY < ry) {
+                maxRY = ry;
+            }
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    isMoveCuros = false;
+                    isCondition = false;
+                    for (CanvasPath path : signView.signPathList) {
+                        if (rx > (path.getStartX() + sx)
+                                && rx < (path.getEndX() + sx)
+                                && ry > (path.getStartY() + sy)
+                                && ry < (path.getEndY() + sy)) {
+                            moveSignPath = path;
+                            startDrowX = (int) (path.getStartX() + sx);
+                            startDrowY = (int) (path.getStartY() + sy);
+                            isCondition = true;
+                            moveSignView = signView;
+
+                            isMoveSi = true;
+                            startDragging(moveSignPath, startDrowX, startDrowY);
+                            moveSignView.setVisibility(INVISIBLE);
+
+                            isCondition = false;
+                            mx = x;
+                            my = y;
+                            return true;
+                        }
+                    }
+
+                    mx = x;
+                    my = y;
+                    break;
+                case MotionEvent.ACTION_MOVE:
+                    if (isMoveSi) {
+                        dragView((int)(x -mx), (int) (y - my));
+                        mx = x;
+                        my = y;
+                        return true;
+                    }
+                    if (isMoveCuros) {
+                        return  true;
+                    }
+                    break;
+                case MotionEvent.ACTION_UP:
+                    maxRX = 0;
+                    maxRY = 0;
+                    mx = x;
+                    my = y;
+                    if (isMoveSi) {
+                        canvasView.clearCanvasView();
+                        float dx = rx - orx;
+                        float dy = ry - ory;
+                        stopDragging(dx, dy);
+                        isMoveSi = false;
+                        return true;
+                    }
+                    if (isMoveCuros) {
+                        canvasView.clearCanvasView();
+                        return true;
+                    }
+                    break;
+            }
+            return false;
         }
     }
 

@@ -13,4 +13,7 @@
     <color name="sign_green">#00ff00</color>
     <color name="sign_orange">#efea3a</color>
 
+    <!--线条颜色-->
+    <color name="line_gray">#D4D4D4</color>
+
 </resources>

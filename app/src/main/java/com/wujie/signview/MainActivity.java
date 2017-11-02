@@ -11,7 +11,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
-import android.widget.Toast;
+import android.widget.TextView;
 
 import com.wujie.signview.adapter.testAdapter;
 import com.wujie.signview.view.DefaultHeader;
@@ -29,11 +29,16 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
     private List<String> nameList = new ArrayList<>();
     //private SmartRefreshLayout smartRefreshLayout;
     private boolean isOnLongClick = false;
+    private TextView spanableTv;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        spanableTv = (TextView) findViewById(R.id.spanable_tv);
+//        SpannableString tt = new SpannableString("请点击下一步");
+//        tt.setSpan(new NextClickableSpan(this), 0, tt.length(), Spannable.SPAN_INCLUSIVE_INCLUSIVE);
+//        spanableTv.setText(tt);
         //smartRefreshLayout = (SmartRefreshLayout) findViewById(R.id.refreshLayout);
         mSpringView = (SpringView)findViewById(R.id.spring_view);
         //mSpringView.setEnable(true);
@@ -48,26 +53,36 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
             nameList.add("第"+i+"个");
         }
         mAdapter = new testAdapter(MainActivity.this, nameList);
+        spanableTv.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                nameList.add("你今天过的还好吗");
+                mAdapter.setNameList(nameList);
+               mAdapter.notifyItemChanged(nameList.size()-1);
+               mRecyclerView.scrollToPosition(nameList.size()-1);
+            }
+        });
+
 //        mAdapter.setLongItemClickListener(this);
 //        mAdapter.setItemClickListener(this);
 
         SwipeRefreshLayout ss;
         mRecyclerView.setAdapter(mAdapter);
         mRecyclerView.setNestedScrollingEnabled(true);
-        mRecyclerView.addOnItemTouchListener(new RecyclerViewClickListener(this, mRecyclerView,
-                new RecyclerViewClickListener.OnItemClickListener() {
-                    @Override
-                    public void onItemClick(View view, int position) {
-                        Toast.makeText(MainActivity.this,"Click "+nameList.get(position),Toast
-                                .LENGTH_SHORT).show();
-                    }
-
-                    @Override
-                    public void onItemLongClick(View view, int position) {
-                        Toast.makeText(MainActivity.this,"Long Click "+nameList.get(position),Toast
-                                .LENGTH_SHORT).show();
-                    }
-                }));
+//        mRecyclerView.addOnItemTouchListener(new RecyclerViewClickListener(this, mRecyclerView,
+//                new RecyclerViewClickListener.OnItemClickListener() {
+//                    @Override
+//                    public void onItemClick(View view, int position) {
+//                        Toast.makeText(MainActivity.this,"Click "+nameList.get(position),Toast
+//                                .LENGTH_SHORT).show();
+//                    }
+//
+//                    @Override
+//                    public void onItemLongClick(View view, int position) {
+//                        Toast.makeText(MainActivity.this,"Long Click "+nameList.get(position),Toast
+//                                .LENGTH_SHORT).show();
+//                    }
+//                }));
     }
 
 

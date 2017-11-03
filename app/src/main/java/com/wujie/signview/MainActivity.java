@@ -56,10 +56,11 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
         spanableTv.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                nameList.add("你今天过的还好吗");
-                mAdapter.setNameList(nameList);
-               mAdapter.notifyItemChanged(nameList.size()-1);
-               mRecyclerView.scrollToPosition(nameList.size()-1);
+//                nameList.add("你今天过的还好吗");
+//                mAdapter.setNameList(nameList);
+//               mAdapter.notifyItemChanged(nameList.size()-1);
+//               mRecyclerView.scrollToPosition(nameList.size()-1);
+                startActivity(new Intent(MainActivity.this, SpeechActivity.class));
             }
         });
 

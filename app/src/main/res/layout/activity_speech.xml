@@ -71,32 +71,192 @@
         android:layout_marginTop="25dp"
         android:src="@drawable/speech_robort_default" />
 
-    <android.support.v7.widget.RecyclerView
-        android:id="@+id/rv_speech_content"
+
+
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@id/rl"
-        android:layout_above="@+id/layout_bottom_operate"/>
+        android:orientation="vertical">
+        <RelativeLayout
+            android:id="@+id/layout_speech_main"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            >
+            <android.support.v7.widget.RecyclerView
+                android:id="@+id/rv_speech_content"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_above="@+id/layout_bottom_operate"/>
 
-    <RelativeLayout
-        android:id="@+id/layout_bottom_operate"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true">
+            <RelativeLayout
+                android:id="@+id/layout_bottom_operate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true">
+
+
+                <LinearLayout
+                    android:id="@+id/layout_speech_search"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:visibility="gone">
+
+                    <Button
+                        android:id="@+id/btn_speech_searchDoc"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:text="查文档"
+                        android:layout_height="wrap_content" />
+
+                    <Button
+                        android:id="@+id/btn_speech_searchBul"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:text="查公告"
+                        android:layout_height="wrap_content" />
+
+                    <Button
+                        android:id="@+id/btn_speech_searchCol"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:text="查协同"
+                        android:layout_height="wrap_content" />
+
+                    <Button
+                        android:id="@+id/btn_speech_searchUser"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:text="查人员"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <RelativeLayout
+                    android:id="@+id/layout_speech_voice_and_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="80dp"
+                    android:layout_below="@id/layout_speech_search"
+                    android:visibility="visible">
+                    <ImageView
+                        android:id="@+id/iv_speech_microphone"
+                        android:layout_width="50dp"
+                        android:layout_height="50dp"
+                        android:layout_marginBottom="30dp"
+                        android:layout_centerHorizontal="true"
+                        android:src="@drawable/speech_microphone" />
+
+                    <RelativeLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="60dp"
+                        android:layout_alignParentBottom="true"
+                        >
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="@dimen/basic_line_height"
+                            android:background="@color/line_gray"
+                            />
+
+                        <Button
+                            android:id="@+id/btn_speech_keyboard_microphone_switch"
+                            android:layout_width="50dp"
+                            android:layout_height="50dp"
+                            android:layout_marginRight="10dp"
+                            android:layout_centerVertical="true"
+                            android:layout_alignParentLeft="true"
+                            android:background="@mipmap/speech_icon_keybord" />
+
+                        <RelativeLayout
+                            android:id="@+id/layout_speech_input"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:visibility="invisible"
+                            android:layout_toRightOf="@id/btn_speech_keyboard_microphone_switch">
+
+                            <EditText
+                                android:id="@+id/et_speech_keyboard_input"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:paddingRight="20dp"
+                                android:textSize="18sp"
+                                android:hint="在这里输入想说出的话"
+                                android:layout_toLeftOf="@+id/btn_speech_submit"
+                                />
+
+
+                            <Button
+                                android:id="@+id/btn_speech_submit"
+                                android:layout_width="50dp"
+                                android:layout_height="50dp"
+                                android:layout_alignParentRight="true"
+                                android:text="发送"/>
+                        </RelativeLayout>
+
+
+                    </RelativeLayout>
+                </RelativeLayout>
+
+
+
+            </RelativeLayout>
+
+
+        </RelativeLayout>
 
         <RelativeLayout
+            android:id="@+id/layout_speech_col_content_input"
             android:layout_width="match_parent"
-            android:layout_height="60dp">
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:visibility="visible">
 
-            <ImageView
-                android:layout_width="50dp"
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_above="@+id/layout_speech_col_content_bar"
+                android:focusable="true"
+                android:gravity="top"
+                android:hint="haha"
+                android:textSize="18sp" />
+
+            <RelativeLayout
+                android:id="@+id/layout_speech_col_content_bar"
+                android:layout_width="match_parent"
                 android:layout_height="50dp"
-                android:layout_centerVertical="true"
-                android:src="@mipmap/speech_icon_keybord"/>
+                android:layout_alignParentBottom="true"
+                android:layout_marginBottom="30dp">
+
+                <ImageView
+                    android:id="@+id/iv_speech_col_content_exit"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_centerVertical="true"
+                    android:layout_marginLeft="20dp"
+                    android:src="@mipmap/ic_launcher" />
+
+                <ImageView
+                    android:id="@+id/iv_speech_col_content_microphone"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:layout_centerHorizontal="true"
+                    android:src="@drawable/speech_microphone" />
+
+                <Button
+                    android:id="@+id/btn_speech_col_content_submit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_alignParentRight="true"
+                    android:text="发送" />
+            </RelativeLayout>
         </RelativeLayout>
 
 
-    </RelativeLayout>
+    </LinearLayout>
+
+
+
 
 
 

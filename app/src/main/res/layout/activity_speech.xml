@@ -98,47 +98,60 @@
                 android:layout_alignParentBottom="true">
 
 
-                <LinearLayout
-                    android:id="@+id/layout_speech_search"
+                <RelativeLayout
+                    android:id="@+id/layout_above_speech"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:visibility="gone">
+                    android:layout_height="wrap_content">
+                    <LinearLayout
+                        android:id="@+id/layout_speech_search"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
 
-                    <Button
-                        android:id="@+id/btn_speech_searchDoc"
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
-                        android:text="查文档"
-                        android:layout_height="wrap_content" />
+                        <Button
+                            android:id="@+id/btn_speech_searchDoc"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:text="查文档"
+                            android:layout_height="wrap_content" />
 
-                    <Button
-                        android:id="@+id/btn_speech_searchBul"
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
-                        android:text="查公告"
-                        android:layout_height="wrap_content" />
+                        <Button
+                            android:id="@+id/btn_speech_searchBul"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:text="查公告"
+                            android:layout_height="wrap_content" />
 
-                    <Button
-                        android:id="@+id/btn_speech_searchCol"
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
-                        android:text="查协同"
-                        android:layout_height="wrap_content" />
+                        <Button
+                            android:id="@+id/btn_speech_searchCol"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:text="查协同"
+                            android:layout_height="wrap_content" />
 
-                    <Button
-                        android:id="@+id/btn_speech_searchUser"
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
-                        android:text="查人员"
+                        <Button
+                            android:id="@+id/btn_speech_searchUser"
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:text="查人员"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
+
+                    <android.support.v7.widget.RecyclerView
+                        android:id="@+id/rv_speech_frequent_select"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content" />
-                </LinearLayout>
+                </RelativeLayout>
+
+
+
 
                 <RelativeLayout
                     android:id="@+id/layout_speech_voice_and_input"
                     android:layout_width="match_parent"
                     android:layout_height="80dp"
-                    android:layout_below="@id/layout_speech_search"
+                    android:layout_below="@id/layout_above_speech"
                     android:visibility="visible">
                     <ImageView
                         android:id="@+id/iv_speech_microphone"
@@ -210,7 +223,7 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:visibility="visible">
+            android:visibility="gone">
 
             <EditText
                 android:layout_width="match_parent"

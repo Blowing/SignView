@@ -13,6 +13,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
+import com.wujie.signview.adapter.FrequentContactsAdapter;
 import com.wujie.signview.adapter.testAdapter;
 import com.wujie.signview.view.DefaultHeader;
 import com.wujie.signview.view.SpringView;
@@ -26,6 +27,10 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
     private RecyclerView mRecyclerView;
     private SpringView mSpringView;
     private testAdapter mAdapter;
+
+
+
+
     private List<String> nameList = new ArrayList<>();
     //private SmartRefreshLayout smartRefreshLayout;
     private boolean isOnLongClick = false;
@@ -46,7 +51,9 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
         mSpringView.setListener(this);
         mSpringView.setType(SpringView.Type.FOLLOW);
         mRecyclerView = (RecyclerView) findViewById(R.id.recyclerView);
-        mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        mRecyclerView.setLayoutManager(layoutManager);
+
 
         mRecyclerView.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.VERTICAL));
         for (int i = 0; i <20 ; i++) {
@@ -84,6 +91,13 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
 //                                .LENGTH_SHORT).show();
 //                    }
 //                }));
+
+
+
+
+
+
+
     }
 
 

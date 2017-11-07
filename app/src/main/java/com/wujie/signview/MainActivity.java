@@ -13,10 +13,10 @@ import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
-import com.wujie.signview.adapter.FrequentContactsAdapter;
 import com.wujie.signview.adapter.testAdapter;
 import com.wujie.signview.view.DefaultHeader;
 import com.wujie.signview.view.SpringView;
+import com.wujie.signview.view.WaveLineView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +35,8 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
     //private SmartRefreshLayout smartRefreshLayout;
     private boolean isOnLongClick = false;
     private TextView spanableTv;
+
+    private WaveLineView waveLineView;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -93,6 +95,8 @@ public class MainActivity extends AppCompatActivity implements View.OnLongClickL
 //                }));
 
 
+        waveLineView = (WaveLineView) findViewById(R.id.wave_view);
+        waveLineView.startAnim();
 
 
 

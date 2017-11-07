@@ -18,6 +18,10 @@
         android:layout_height="60dp"
         android:textSize="20sp"
         android:text="www.baidu.com" />
+    <com.wujie.signview.view.WaveLineView
+        android:id="@+id/wave_view"
+        android:layout_width="match_parent"
+        android:layout_height="120dp" />
 
 
     <com.wujie.signview.view.SpringView
@@ -30,4 +34,5 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"/>
     </com.wujie.signview.view.SpringView>
+
 </LinearLayout>

@@ -6,7 +6,7 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="100dp"
+        android:layout_height="@dimen/speech_height"
         android:orientation="horizontal">
         <RelativeLayout
             android:layout_width="100dp"
